@@ -42,9 +42,11 @@ The proposal frames catastrophic action prevention as a one-player variant of th
 
 - Risky-Bench arXiv: https://arxiv.org/abs/2602.03100
   Title observed: "Risky-Bench: Probing Agentic Safety Risks under Real-World Deployment".
+  Abstract note: Risky-Bench targets real-world LLM-agent deployments, derives context-aware safety rubrics from domain-agnostic safety principles, and evaluates long-horizon interactive task execution under varying threat assumptions. Fit for this project: useful as a later evaluation methodology, but too broad for P1-P4 before deterministic file-deletion logging is stable.
 
 - SafeToolBench ACL Anthology: https://aclanthology.org/2025.findings-emnlp.958/
   Title observed: "SafeToolBench: Pioneering a Prospective Benchmark to Evaluating Tool Utilization Safety in LLMs".
+  Citation metadata observed: Findings of ACL EMNLP 2025, pages 17643--17660, DOI 10.18653/v1/2025.findings-emnlp.958. Fit for this project: likely relevant to safe tool-use taxonomies and task templates after the local sandbox has a stable action schema.
 
 - BountyBench Stanford/OpenReview: https://ai.stanford.edu/blog/bountybench/ and https://openreview.net/forum?id=pIsP4lMlFd
   Observed framing: offensive/defensive cybersecurity tasks over real-world systems, with Detect/Exploit/Patch task types.
