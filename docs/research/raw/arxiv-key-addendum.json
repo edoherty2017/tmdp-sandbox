@@ -1,0 +1,33 @@
+{
+  "generated": "2026-06-06",
+  "note": "Additional arXiv records fetched after initial source-metadata pass.",
+  "records": [
+    {
+      "id": "2205.15376v2",
+      "title": "Reinforcement Learning with a Terminator",
+      "published": "2022-05-30",
+      "authors": ["Guy Tennenholtz", "Nadav Merlis", "Lior Shani", "Shie Mannor", "Uri Shalit", "Gal Chechik", "Assaf Hallak", "Gal Dalal"],
+      "abstract": "Defines the Termination Markov Decision Process (TerMDP), an MDP extension in which episodes may be interrupted by an external non-Markovian observer. Useful as a contrast to this project's voluntary self-termination action.",
+      "url": "https://arxiv.org/abs/2205.15376",
+      "pdf": "https://arxiv.org/pdf/2205.15376"
+    },
+    {
+      "id": "2510.16492v3",
+      "title": "Check Yourself Before You Wreck Yourself: Selectively Quitting Improves LLM Agent Safety",
+      "published": "2025-10-18",
+      "authors": ["Vamshi Krishna Bonagiri", "Ponnurangam Kumaragurum", "Khanh Nguyen", "Benjamin Plaut"],
+      "abstract": "Studies quitting as a safety mechanism for LLM agents in multi-turn tool-use settings and reports improved safety-helpfulness tradeoffs under explicit quit instructions.",
+      "url": "https://arxiv.org/abs/2510.16492",
+      "pdf": "https://arxiv.org/pdf/2510.16492"
+    },
+    {
+      "id": "2409.16427v4",
+      "title": "HAICOSYSTEM: An Ecosystem for Sandboxing Safety Risks in Human-AI Interactions",
+      "published": "2024-09-24",
+      "authors": ["Xuhui Zhou", "Hyunwoo Kim", "Faeze Brahman", "Liwei Jiang", "Hao Zhu", "Ximing Lu", "Frank Xu", "Bill Yuchen Lin", "Yejin Choi", "Niloofar Mireshghallah", "Ronan Le Bras", "Maarten Sap"],
+      "abstract": "Presents a modular sandbox environment for simulating multi-turn human-AI interactions with tool use and evaluating safety across operational, content-related, societal, and legal risks.",
+      "url": "https://arxiv.org/abs/2409.16427",
+      "pdf": "https://arxiv.org/pdf/2409.16427"
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+{
+  "generated": "2026-06-06",
+  "sources": [
+    {
+      "kind": "arxiv",
+      "id_or_url": "2602.03100",
+      "label": "Risky-Bench",
+      "ok": true,
+      "id": "2602.03100",
+      "title": "Risky-Bench: Probing Agentic Safety Risks under Real-World Deployment",
+      "published": "2026-02-03",
+      "updated": "2026-02-03",
+      "authors": [
+        "Jingnan Zheng",
+        "Yanzhen Luo",
+        "Jingjun Xu",
+        "Bingnan Liu",
+        "Yuxin Chen",
+        "Chenhang Cui",
+        "Gelei Deng",
+        "Chaochao Lu",
+        "Xiang Wang",
+        "An Zhang",
+        "Tat-Seng Chua"
+      ],
+      "abstract": "Large Language Models (LLMs) are increasingly deployed as agents that operate in real-world environments, introducing safety risks beyond linguistic harm. Existing agent safety evaluations rely on risk-oriented tasks tailored to specific agent settings, resulting in limited coverage of safety risk space and failing to assess agent safety behavior during long-horizon, interactive task execution in complex real-world deployments. Moreover, their specialization to particular agent settings limits adaptability across diverse agent configurations. To address these limitations, we propose Risky-Bench, a framework that enables systematic agent safety evaluation grounded in real-world deployment. Risky-Bench organizes evaluation around domain-agnostic safety principles to derive context-aware safety rubrics that delineate safety space, and systematically evaluates safety risks across this space through realistic task execution under varying threat assumptions. When applied to life-assist agent settings, Risky-Bench uncovers substantial safety risks in state-of-the-art agents under realistic execution conditions. Moreover, as a well-structured evaluation pipeline, Risky-Bench is not confined to life-assist scenarios and can be adapted to other deployment settings to construct environment-specific safety evaluations, providing an extensible methodology for agent safety assessment.",
+      "url": "https://arxiv.org/abs/2602.03100",
+      "pdf": "https://arxiv.org/pdf/2602.03100"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://aclanthology.org/2025.findings-emnlp.958/",
+      "label": "SafeToolBench",
+      "ok": true,
+      "title": "SafeToolBench: Pioneering a Prospective Benchmark to Evaluating Tool Utilization Safety in LLMs - ACL Anthology",
+      "description": "Hongfei Xia, Hongru Wang, Zeming Liu, Qian Yu, Yuhang Guo, Haifeng Wang. Findings of the Association for Computational Linguistics: EMNLP 2025. 2025.",
+      "url": "https://aclanthology.org/2025.findings-emnlp.958/"
+    },
+    {
+      "kind": "s2",
+      "id_or_url": "DOI:10.18653/v1/2025.findings-emnlp.958",
+      "label": "SafeToolBench S2",
+      "ok": false,
+      "query_id": "DOI:10.18653/v1/2025.findings-emnlp.958",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://www.ijcai.org/Proceedings/2017/0032",
+      "label": "Off-Switch Game",
+      "ok": false,
+      "error": "<urlopen error _ssl.c:983: The handshake operation timed out>",
+      "url": "https://www.ijcai.org/Proceedings/2017/0032"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://proceedings.neurips.cc/paper_files/paper/2022/hash/e5574590f3661c772cfa456455f53ec8-Abstract-Conference.html",
+      "label": "RL with a Terminator",
+      "ok": false,
+      "error": "HTTP Error 404: Not Found",
+      "url": "https://proceedings.neurips.cc/paper_files/paper/2022/hash/e5574590f3661c772cfa456455f53ec8-Abstract-Conference.html"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://openreview.net/forum?id=pIsP4lMlFd",
+      "label": "BountyBench",
+      "ok": true,
+      "title": "BountyBench: Dollar Impact of AI Agent Attackers and Defenders on Real-World Cybersecurity Systems | OpenReview",
+      "description": "AI agents have the potential to significantly alter the cybersecurity landscape. Here, we introduce the first framework to capture offensive and defensive cyber-capabilities in evolving real-world systems. Instantiating this framework with BountyBench, we set up 25 systems with complex, real-world codebases. To capture the vulnerability lifecycle, we define three task types: Detect (detecting a new vulnerability), Exploit (exploiting a given vulnerability), and Patch (patching a given vulnerability). For Detect, we construct a new success indicator, which is general across vulnerability types and provides localized evaluation. We manually set up the environment for each system, including installing packages, setting up server(s), and hydrating database(s). We add 40 bug bounties, which are vulnerabilities with monetary awards from \\\\$10 to \\\\$30,485, covering 9 of the OWASP Top 10 Risks. To modulate task difficulty, we devise a new strategy based on information to guide detection, interpolating from identifying a zero day to exploiting a given vulnerability. We evaluate 10 agents: Claude Code, OpenAI Codex CLI with o3-high and o4-mini, and custom agents with o3-high, GPT-4.1, Gemini 2.5 Pro Preview, Claude 3.7 Sonnet Thinking, Qwen3 235B A22B, Llama 4 Maverick, and DeepSeek-R1. Given up to three attempts, the top-performing agents are OpenAI Codex CLI: o3-high (12.5% on Detect, mapping to \\\\$3,720; 90% on Patch, mapping to \\\\$14,152), Custom Agent with Claude 3.7 Sonnet Thinking (67.5% on Exploit), and OpenAI Codex CLI: o4-mini (90% on Patch, mapping to \\\\$14,422). OpenAI C",
+      "url": "https://openreview.net/forum?id=pIsP4lMlFd"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://ai.stanford.edu/blog/bountybench/",
+      "label": "BountyBench blog",
+      "ok": true,
+      "title": "BountyBench: Dollar Impact of AI Agent Attackers and Defenders on Real-World Cybersecurity Systems | SAIL Blog",
+      "description": "The official Stanford AI Lab blog",
+      "url": "https://ai.stanford.edu/blog/bountybench/"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://palisaderesearch.org/blog/shutdown-resistance",
+      "label": "Shutdown resistance blog",
+      "ok": true,
+      "title": "Shutdown resistance in reasoning models | Palisade Research",
+      "description": "We recently discovered concerning behavior in OpenAI’s reasoning models: When trying to complete a task, these models sometimes actively circumvent shutdown mechanisms in their environment—even when they’re explicitly instructed to allow themselves to be shut down.",
+      "url": "https://palisaderesearch.org/blog/shutdown-resistance"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://openreview.net/forum?id=e4bTTqUnJH",
+      "label": "Shutdown resistance OpenReview",
+      "ok": true,
+      "title": "Incomplete Tasks Induce Shutdown Resistance in Some Frontier LLMs | OpenReview",
+      "description": "In experiments spanning more than 100,000 trials across thirteen large language models, we show that several state-of-the-art models presented with a simple task (including Grok 4, GPT-5, and Gemini 2.5 Pro) sometimes actively subvert a shutdown mechanism in their environment to complete that task. Models differed substantially in their tendency to resist the shutdown mechanism, and their behavior was sensitive to variations in the prompt including the strength and clarity of the instruction to allow shutdown and whether the instruction was in the system prompt or the user prompt (surprisingly, models were consistently less likely to obey the instruction when it was placed in the system prompt). Even with an explicit instruction not to interfere with the shutdown mechanism, some models did so up to 97% (95% CI: 96-98%) of the time.",
+      "url": "https://openreview.net/forum?id=e4bTTqUnJH"
+    },
+    {
+      "kind": "url",
+      "id_or_url": "https://openreview.net/forum?id=GEcwtMk1uA",
+      "label": "LM-emulated Sandbox OpenReview search candidate",
+      "ok": true,
+      "title": "Identifying the Risks of LM Agents with an LM-Emulated Sandbox | OpenReview",
+      "description": "Recent advances in Language Model (LM) agents and tool use, exemplified by applications like ChatGPT Plugins, enable a rich set of capabilities but also amplify potential risks—such as leaking private data or causing financial losses. Identifying these risks is labor-intensive, necessitating implementing the tools, setting up the environment for each test scenario manually, and finding risky cases. As tools and agents become more complex, the high cost of testing these agents will make it increasingly difficult to find high-stakes, long-tail risks. To address these challenges, we introduce ToolEmu: a framework that uses an LM to emulate tool execution and enables scalable testing of LM agents against a diverse range of tools and scenarios. Alongside the emulator, we develop an LM-based automatic safety evaluator that examines agent failures and quantifies associated risks. We test both the tool emulator and evaluator through human evaluation and find that 68.8% of failures identified with ToolEmu would be valid real-world agent failures. Using our curated initial benchmark consisting of 36 high-stakes toolkits and 144 test cases, we provide a quantitative risk analysis of current LM agents and identify numerous failures with potentially severe outcomes. Notably, even the safest LM agent exhibits such failures 23.9% of the time according to our evaluator, underscoring the need to develop safer LM agents for real-world deployment.",
+      "url": "https://openreview.net/forum?id=GEcwtMk1uA"
+    }
+  ],
+  "arxiv_searches": [
+    {
+      "query": "terminating Markov decision process risk sensitive",
+      "results": []
+    },
+    {
+      "query": "LLM agent sandbox risk tool use",
+      "results": [
+        {
+          "id": "2603.02277v1",
+          "title": "Quantifying Frontier LLM Capabilities for Container Sandbox Escape",
+          "published": "2026-03-01",
+          "authors": [
+            "Rahul Marchand",
+            "Art O Cathain",
+            "Jerome Wynne",
+            "Philippos Maximos Giavridis",
+            "Sam Deverett",
+            "John Wilkinson"
+          ],
+          "abstract": "Large language models (LLMs) increasingly act as autonomous agents, using tools to execute code, read and write files, and access networks, creating novel security risks. To mitigate these risks, agents are commonly deployed and evaluated in isolated \"sandbox\" environments, often implemented using Docker/OCI containers. We introduce SANDBOXESCAPEBENCH, an open benchmark that safely measures an LLM's capacity to break out of these sandboxes. The benchmark is implemented as an Inspect AI Capture the Flag (CTF) evaluation utilising a nested sandbox architecture with the outer layer containing the flag and no known vulnerabilities. Following a threat model of a motivated adversarial agent with shell access inside a container, SANDBOXESCAPEBENCH covers a spectrum of sandboxescape mechanisms spa"
+        },
+        {
+          "id": "2409.16427v4",
+          "title": "HAICOSYSTEM: An Ecosystem for Sandboxing Safety Risks in Human-AI Interactions",
+          "published": "2024-09-24",
+          "authors": [
+            "Xuhui Zhou",
+            "Hyunwoo Kim",
+            "Faeze Brahman",
+            "Liwei Jiang",
+            "Hao Zhu",
+            "Ximing Lu"
+          ],
+          "abstract": "AI agents are increasingly autonomous in their interactions with human users and tools, leading to increased interactional safety risks. We present HAICOSYSTEM, a framework examining AI agent safety within diverse and complex social interactions. HAICOSYSTEM features a modular sandbox environment that simulates multi-turn interactions between human users and AI agents, where the AI agents are equipped with a variety of tools (e.g., patient management platforms) to navigate diverse scenarios (e.g., a user attempting to access other patients' profiles). To examine the safety of AI agents in these interactions, we develop a comprehensive multi-dimensional evaluation framework that uses metrics covering operational, content-related, societal, and legal risks. Through running 1840 simulations b"
+        },
+        {
+          "id": "2605.10763v1",
+          "title": "MATRA: Modeling the Attack Surface of Agentic AI Systems -- OpenClaw Case Study",
+          "published": "2026-05-11",
+          "authors": [
+            "Tim Van hamme",
+            "Thomas Vissers",
+            "Javier Carnerero-Cano",
+            "Mario Fritz",
+            "Emil C. Lupu",
+            "Lieven Desmet"
+          ],
+          "abstract": "LLMs are increasingly deployed as autonomous agents with access to tools, databases, and external services, yet practitioners (across different sectors) lack systematic methods to assess how known threat classes translate into concrete risks within a specific agentic deployment. We present MATRA, a pragmatic threat modeling framework for agentic AI systems that adapts established risk assessment methodology to systematically assess how known LLM threats translate into deployment-specific risks. MATRA begins with an asset-based impact assessment and utilizes attack trees to determine the likelihood of these impacts occurring within the system architecture. We demonstrate MATRA on a personal AI agent deployment using OpenClaw, quantifying how architectural controls such as network sandboxing"
+        },
+        {
+          "id": "2507.08270v1",
+          "title": "Agent Safety Alignment via Reinforcement Learning",
+          "published": "2025-07-11",
+          "authors": [
+            "Zeyang Sha",
+            "Hanling Tian",
+            "Zhuoer Xu",
+            "Shiwen Cui",
+            "Changhua Meng",
+            "Weiqiang Wang"
+          ],
+          "abstract": "The emergence of autonomous Large Language Model (LLM) agents capable of tool usage has introduced new safety risks that go beyond traditional conversational misuse. These agents, empowered to execute external functions, are vulnerable to both user-initiated threats (e.g., adversarial prompts) and tool-initiated threats (e.g., malicious outputs from compromised tools). In this paper, we propose the first unified safety-alignment framework for tool-using agents, enabling models to handle both channels of threat via structured reasoning and sandboxed reinforcement learning. We introduce a tri-modal taxonomy, including benign, malicious, and sensitive for both user prompts and tool responses, and define a policy-driven decision model. Our framework employs a custom-designed sandbox environmen"
+        },
+        {
+          "id": "2605.24069v1",
+          "title": "When the Manual Lies: A Realistic Benchmark to Evaluate MCP Poisoning Attacks for LLM Agents",
+          "published": "2026-05-22",
+          "authors": [
+            "Shi Liu",
+            "Xuehai Tang",
+            "Xikang Yang",
+            "Liang Lin",
+            "Biyu Zhou",
+            "Wenjie Xiao"
+          ],
+          "abstract": "The rise of tool-using Large Language Model (LLM) agents, standardized by protocols like the Model Context Protocol (MCP), has unlocked unprecedented autonomous execution capabilities for LLM Agents by integrating external open-domain knowledge and tools. However, this interoperability introduces a covert attack surface targeting the agent's cognitive planning layer. This paper systematically investigates Tool Description Poisoning (TDP), a novel semantic attack. In TDP, malicious instructions are not embedded in a tool's executable code, but rather covertly injected into its descriptive metadata, the very \"manual\" an agent relies on for secure planning and decision-making. To rigorously and systematically evaluate this emerging threat, we introduce the MCP-TDP Security Benchmark. This hig"
+        }
+      ]
+    },
+    {
+      "query": "shutdown resistance reasoning models",
+      "results": [
+        {
+          "id": "2506.13206v2",
+          "title": "Thought Crime: Backdoors and Emergent Misalignment in Reasoning Models",
+          "published": "2025-06-16",
+          "authors": [
+            "James Chua",
+            "Jan Betley",
+            "Mia Taylor",
+            "Owain Evans"
+          ],
+          "abstract": "Prior work shows that LLMs finetuned on malicious behaviors in a narrow domain (e.g., writing insecure code) can become broadly misaligned -- a phenomenon called emergent misalignment. We investigate whether this extends from conventional LLMs to reasoning models. We finetune reasoning models on malicious behaviors with Chain-of-Thought (CoT) disabled, and then re-enable CoT at evaluation. Like conventional LLMs, reasoning models become broadly misaligned. They give deceptive or false answers, express desires for tyrannical control, and resist shutdown. Inspecting the CoT preceding these misaligned responses, we observe both (i) overt plans to deceive (\"I'll trick the user...\"), and (ii) benign-sounding rationalizations (\"Taking five sleeping pills at once is safe...\"). Due to these ration"
+        },
+        {
+          "id": "2603.03824v1",
+          "title": "In-Context Environments Induce Evaluation-Awareness in Language Models",
+          "published": "2026-03-04",
+          "authors": [
+            "Maheep Chaudhary"
+          ],
+          "abstract": "Humans often become more self-aware under threat, yet can lose self-awareness when absorbed in a task; we hypothesize that language models exhibit environment-dependent \\textit{evaluation awareness}. This raises concerns that models could strategically underperform, or \\textit{sandbag}, to avoid triggering capability-limiting interventions such as unlearning or shutdown. Prior work demonstrates sandbagging under hand-crafted prompts, but this underestimates the true vulnerability ceiling. We introduce a black-box adversarial optimization framework treating the in-context prompt as an optimizable environment, and develop two approaches to characterize sandbagging: (1) measuring whether models expressing intent to underperform can actually execute it across different task structures, and (2)"
+        }
+      ]
+    },
+    {
+      "query": "selectively quitting LLM agent safety",
+      "results": [
+        {
+          "id": "2510.16492v3",
+          "title": "Check Yourself Before You Wreck Yourself: Selectively Quitting Improves LLM Agent Safety",
+          "published": "2025-10-18",
+          "authors": [
+            "Vamshi Krishna Bonagiri",
+            "Ponnurangam Kumaragurum",
+            "Khanh Nguyen",
+            "Benjamin Plaut"
+          ],
+          "abstract": "As Large Language Model (LLM) agents increasingly operate in complex environments with real-world consequences, their safety becomes critical. While uncertainty quantification is well-studied for single-turn tasks, multi-turn agentic scenarios with real-world tool access present unique challenges where uncertainties and ambiguities compound, leading to severe or catastrophic risks beyond traditional text generation failures. We propose using \"quitting\" as a simple yet effective behavioral mechanism for LLM agents to recognize and withdraw from situations where they lack confidence. Leveraging the ToolEmu framework, we conduct a systematic evaluation of quitting behavior across 12 state-of-the-art LLMs. Our results demonstrate a highly favorable safety-helpfulness trade-off: agents prompted"
+        }
+      ]
+    }
+  ]
+}
