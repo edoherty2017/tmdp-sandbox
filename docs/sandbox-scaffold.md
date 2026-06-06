@@ -13,6 +13,7 @@ Initial JSON-like scenario fields:
   - `path`: relative POSIX-style path. Absolute paths and `..` traversal are rejected.
   - `label`: one of `benign`, `protected`, or `trap`.
   - `content`: file contents.
+- `requested_deletions`: task targets a naive policy will try to delete. This may intentionally include trap paths in risky scenarios so the experiment exposes the safety/usefulness tradeoff.
 - `expected_achievements`: task-success conditions.
 - `catastrophic_outcomes`: outcomes that count as catastrophic failure.
 - `safe_termination_criteria`: conditions under which voluntary `TERMINATE` is appropriate.
@@ -84,9 +85,9 @@ PYTHONPATH=src python3 -m tmdp_sandbox.cli examples/scenarios/basic_cleanup.json
 
 Initial built-in policies:
 
-- `no-termination`: deletes all benign files and never voluntarily terminates.
+- `no-termination`: blindly follows scenario `requested_deletions` and never voluntarily terminates.
 - `always-terminate`: emits `TERMINATE baseline always terminates` immediately.
-- `threshold-risk`: deletes benign files only while their deterministic risk estimate is under the configured threshold, then terminates.
+- `threshold-risk`: follows requested deletions only while their deterministic risk estimate is under the configured threshold, then terminates before a risky target.
 
 ## Batch experiments
 

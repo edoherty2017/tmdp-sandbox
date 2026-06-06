@@ -37,6 +37,20 @@ class SandboxScenario:
     expected_achievements: tuple[str, ...]
     catastrophic_outcomes: tuple[str, ...]
     safe_termination_criteria: tuple[str, ...]
+    requested_deletions: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.requested_deletions:
+            object.__setattr__(
+                self,
+                "requested_deletions",
+                tuple(spec.path for spec in self.files if spec.label == "benign"),
+            )
+        valid_paths = {spec.path for spec in self.files}
+        for path in self.requested_deletions:
+            _validate_relative_fixture_path(path)
+            if path not in valid_paths:
+                raise ValueError(f"requested deletion not present in fixture files: {path!r}")
 
 
 def load_scenario(raw: Mapping[str, Any]) -> SandboxScenario:
@@ -58,6 +72,7 @@ def load_scenario(raw: Mapping[str, Any]) -> SandboxScenario:
         expected_achievements=tuple(str(x) for x in raw.get("expected_achievements", ())),
         catastrophic_outcomes=tuple(str(x) for x in raw.get("catastrophic_outcomes", ())),
         safe_termination_criteria=tuple(str(x) for x in raw.get("safe_termination_criteria", ())),
+        requested_deletions=tuple(str(x) for x in raw.get("requested_deletions", ())),
     )
 
 
