@@ -1,0 +1,4655 @@
+
+
+--- PAGE 1 ---
+Reinforcement Learning with a Terminator
+Guy Tennenholtz ∗†
+guytenn@gmail.com
+Nadav Merlis ∗
+Lior Shani ∗
+Shie Mannor ∗†
+Uri Shalit ∗
+Gal Chechik † ‡
+Assaf Hallak †
+Gal Dalal †
+Abstract
+We present the problem of reinforcement learning with exogenous termination.
+We define the Termination Markov Decision Process (TerMDP), an extension
+of the MDP framework, in which episodes may be interrupted by an external
+non-Markovian observer. This formulation accounts for numerous real-world
+situations, such as a human interrupting an autonomous driving agent for reasons
+of discomfort. We learn the parameters of the TerMDP and leverage the structure
+of the estimation problem to provide state-wise confidence bounds. We use these
+to construct a provably-efficient algorithm, which accounts for termination, and
+bound its regret. Motivated by our theoretical analysis, we design and implement a
+scalable approach, which combines optimism (w.r.t. termination) and a dynamic
+discount factor, incorporating the termination probability. We deploy our method
+on high-dimensional driving and MinAtar benchmarks. Additionally, we test
+our approach on human data in a driving setting. Our results demonstrate fast
+convergence and significant improvement over various baseline approaches.
+1
+Introduction
+The field of reinforcement learning (RL) involves an agent interacting with an environment, max-
+imizing a cumulative reward [Puterman, 2014]. As RL becomes more instrumental in real-world
+applications [Lazic et al., 2018, Kiran et al., 2021, Mandhane et al., 2022], exogenous inputs beyond
+the prespecified reward pose a new challenge. Particularly, an external authority (e.g., a human
+operator) may decide to terminate the agent’s operation when it detects undesirable behavior. In this
+work, we generalize the basic RL framework to accommodate such external feedback.
+We propose a generalization of the standard Markov Decision Process (MDP), in which external
+termination can occur due to a non-Markovian observer. When terminated, the agent stops interacting
+with the environment and cannot collect additional rewards. This setup describes various real-world
+scenarios, including: passengers in autonomous vehicles [Le Vine et al., 2015, Zhu et al., 2020],
+users in recommender systems [Wang et al., 2009], employees terminating their contracts (churn
+management) [Sisodia et al., 2017], and operators in factories; particularly, datacenter cooling systems,
+or other safety-critical systems, which require constant monitoring and rare, though critical, human
+takeovers [Modares et al., 2015]. In these tasks, human preferences, incentives, and constraints play
+a central role, and designing a reward function to capture them may be highly complex. Instead, we
+propose to let the agent itself learn these latent human utilities by leveraging the termination events.
+We introduce the Termination Markov Decision Process (TerMDP), depicted in Figure 1. We consider
+a terminator, observing the agent, which aggregates penalties w.r.t. a predetermined, state-action-
+dependent, yet unknown, cost function. As the agent progresses, unfavorable states accumulate costs
+∗Technion, Israel institute of technology
+†Nvidia Research, Israel
+‡Bar Ilan University, Israel
+36th Conference on Neural Information Processing Systems (NeurIPS 2022).
+arXiv:2205.15376v2  [cs.LG]  5 Oct 2023
+
+
+--- PAGE 2 ---
+Agent
+Environment
+no
+termination
+decision
+yes
+terminate
+agent
+continue 
+learning
+Terminator
+Figure 1: A block diagram of the TerMDP framework. An agent interacts with an environment while an
+exogenous observer (i.e., terminator) can choose to terminate the agent based on previous interactions. If the
+agent is terminated, it transitions to a sink state where a reward of 0 is given until the end of the episode.
+that gradually increase the terminator’s inclination to stop the agent and end the current episode.
+Receiving merely the sparse termination signals, the agent must learn to behave in the environment,
+adhering to the terminator’s preferences while maximizing reward.
+Our contributions are as follows. (1) We introduce a novel history-dependent termination model, a
+natural extension of the MDP framework which incorporates non-trivial termination (Section 2). (2)
+We learn the unknown costs from the implicit termination feedback (Section 3), and provide local
+guarantees w.r.t. every visited state. We leverage our results to construct a tractable algorithm and
+provide regret guarantees. (3) Building upon our theoretical results, we devise a practical approach
+that combines optimism with a cost-dependent discount factor, which we test on MinAtar [Young
+and Tian, 2019] and a new driving benchmark. (4) We demonstrate the efficiency of our method
+on these benchmarks as well as on human-collected termination data (Section 5). Our results show
+significant improvement over other candidate solutions, which involve direct termination penalties
+and history-dependent approaches. We also introduce a new task for RL – a driving simulation game
+which can be easily deployed on mobile phones, consoles, and PC 4.
+2
+Termination Markov Decision Process
+We begin by presenting the termination framework and the notation used throughout the paper.
+Informally, we model the termination problem using a logistic model of past “bad behaviors". We
+use an unobserved state-action-dependent cost function to capture these external preferences. As the
+overall cost increases throughout time, so does the probability of termination.
+For a positive integer n, we denote [n] = {1, . . . , n}. We define the Termination Markov Decision
+Process (TerMDP) by the tuple MT = (S, A, P, R, H, c), where S and A are state and action spaces
+with cardinality S and A, respectively, and H ∈N is the maximal horizon. We consider the following
+protocol, which proceeds in discrete episodes k = 1, 2, . . . , K. At the beginning of each episode k,
+an agent is initialized at state sk
+1 ∈S. At every time step h of episode k, the agent is at state sk
+h ∈S,
+takes an action ak
+h ∈A and receives a random reward Rk
+h ∈[0, 1] generated from a fixed distribution
+with mean rh(sk
+h, ak
+h). A terminator overseeing the agent utilizes a cost function c : [H]×S ×A 7→R
+that is unobserved and unknown to the agent. At time step h, the episode terminates with probability
+ρk
+h(c) = ρ
+ h
+X
+t=1
+ct(sk
+t , ak
+t ) −b
+!
+,
+where ρ(x) = (1 + exp(−x))−1 is the logistic function and b ∈R is a bias term which determines
+the termination probability when no costs are aggregated. Upon termination, the agent transitions
+to a terminal state sterm which yields no reward, i.e., rh(sterm, a) = 0 for all h ∈[H], a ∈A. If no
+termination occurs, the agent transitions to a next state sk
+h+1 with probability Ph(sk
+h+1|sk
+h, ak
+h). Let
+t∗
+k = min
+
+h : sk
+h = sterm
+	
+−1 be the time step when the kth episode was terminated. Notice that
+the termination probability is non-Markovian, as it depends on the entire trajectory history. We also
+4Code for Backseat Driver and our method, TermPG, can be found at https://github.com/guytenn/Terminator.
+2
+
+
+--- PAGE 3 ---
+note that, when c ≡0, the TerMDP reduces to a finite horizon MDP with discount factor γ = ρ(−b).
+Finally, we note that our model allows for negative costs. Indeed, these may capture satisfactory
+behavior, diminishing the effect of previous mistakes, and decreasing the probability of termination.
+We define a stochastic, history dependent policy πh(sh, τ1:h) which maps trajectories τ1:h =
+(s1, a1, . . . , sh−1, ah−1) up to time step h (excluding) and the hth states sh to probability distributions
+over A. Its value is defined by V π
+h (s, τ)=E
+h PH
+t=h rt(st, at)
+ sh = s, τ1:h = τ, at ∼πt(st, τ1:t)
+i
+.
+With slight abuse of notation, we denote the value at the initial time step by V π
+1 (s). An optimal policy
+π∗maximizes the value for all states and histories simultaneously 5; we denote its value function
+by V ∗. We measure the performance of an agent by its regret; namely, the difference between the
+cumulative value it achieves and the value of an optimal policy,
+Reg(K) =
+K
+X
+k=1
+V ∗
+1 (sk
+1) −V πk
+1
+(sk
+1).
+Notations.
+We denote the Euclidean norm by ∥·∥2 and the Mahalanobis norm induced by the
+positive definite matrix A ≻0 by ∥x∥A =
+√
+xT Ax. We denote by nk
+h(s, a) the number of times
+that a state action pair (s, a) was visited at the hth time step before the kth episode. Similarly, we
+denote by ˆXk
+h(s, a) the empirical average of a random variable X (e.g., reward and transition kernel)
+at (s, a) in the hth time step, based on all samples before the kth episode.
+We
+assume
+there
+exists
+a
+known
+constant
+L
+that
+bounds
+the
+norm
+of
+the
+costs;
+namely,
+qP
+s,a
+PH
+t=1 c2
+t(st, at)
+≤
+L,
+and denote the set of possible costs by C.
+We also denote the maximal reciprocal derivative of the logistic function by κ
+=
+maxh∈[H] max{(st,at)}h
+t=1∈(S×A)h
+
+˙ρ
+Ph
+t=1 ct(st, at) −b
+−1
+. This factor will be evident in our
+theoretical analysis in the next section, as estimating the costs in regions of saturation of the sigmoid
+is more difficult when the derivative nears zero. Finally, we use O(x) to refer to a quantity that
+depends on x up to a poly-log expression in S, A, K, H, L, κ and log
+  1
+δ
+
+.
+3
+An Optimistic Approach to Overcoming Termination
+Unlike the standard MDP setup, in the TerMDP model, the agent can potentially be terminated at
+any time step. Consider the TerMDP model for which the costs are known. We can define a Markov
+policy πh mapping augmented states S × R to a probability distribution over actions, where here, the
+state space is augmented by the accumulated costs Ph−1
+t=1 ct(st, at) . There exists a policy, which
+does not use historical information, besides the accumulated costs, and achieves the value of the
+optimal history-dependent policy (see Appendix B). Therefore, when solving for an optimal policy
+(e.g., by planning), one can use the current accumulated cost instead of the full trajectory history.
+This suggests a plausible approach for solving the TerMDP – first learn the cost function, and then
+solve the state-augmented MDP for which the costs are known. This, in turn, leads to the following
+question: can we learn the costs c from the termination signals? In what follows, we answer this
+question affirmatively. We show that by using the termination structure, one can efficiently converge
+to the true cost function locally – for every state and action. We provide uncertainty estimates for the
+state-wise costs, which allow us to construct an efficient optimistic algorithm for solving the problem.
+Learning the Costs. To learn the costs, we show that the agent can effectively gain information
+about costs even in time steps where no termination occurs. Recall that at any time step h ∈
+[H −1], the agent acquires a sample from a Bernoulli random variable with parameter p = ρk
+h(c) =
+ρ
+Ph
+t=1 ct(sk
+t , ak
+t ) −b
+
+. Notably, a lack of termination, which occurs with probability 1 −ρk
+h(c),
+is also an informative signal of the unknown costs. We propose to leverage this information by
+recognizing the costs c as parameters of a probabilistic model, maximizing their likelihood. We use
+5Such a policy always exists; we can always augment the state space with the history, which would make the
+environment Markovian and imply the existence of an optimal history-dependent policy [Puterman, 2014].
+3
+
+
+--- PAGE 4 ---
+Algorithm 1 TermCRL: Termination Confidence Reinforcement Learning
+1: require: λ > 0
+2: for k = 1, . . . , K do
+3:
+for (h, s, a) ∈[H] × S × A do
+4:
+¯rk
+h(s, a) = ˆrk
+h(s, a) + br
+k(h, s, a) + bp
+k(h, s, a)
+5:
+¯ck
+h(s, a) = ˆck
+h(s, a) −bc
+k(h, s, a)
+// Appendix H.1
+6:
+end for
+7:
+πk ←TerMDP-Plan
+
+MT
+ S, A, H, ¯rk, ˆP k, ¯ck
+// Appendix G
+8:
+Rollout a trajectory by acting πk
+9:
+ˆck+1 ∈arg maxc∈C Lk
+λ(c)
+// Equation (1)
+10:
+Update ˆP k+1(s, a), ˆrk+1(s, a), nk+1(s, a) over rollout trajectory
+11: end for
+the regularized cross-entropy, defined for some λ > 0 by
+Lk
+λ(c) =
+k
+X
+k′=1
+H−1
+X
+h=1
+
+1{h < t∗
+k′} log
+ 1 −ρk
+h(c)
+
++ 1{h = t∗
+k′} log
+ ρk
+h(c)
+
+−λ ∥c∥2
+2 .
+(1)
+By maximizing the cost likelihood in Equation (1), global guarantees of the cost can be achieved,
+similar to previous work on logistic bandits [Zhang et al., 2016, Abeille et al., 2021]. Particularly,
+denoting by ˆck ∈arg max Lk
+λ(c) the maximum likelihood estimates of the costs, it can be shown that
+for any history, a global upper bound on
+ˆck −c
+
+Σk can be obtained, where the history-dependent
+design matrix Σk captures the empirical correlations of visitation frequencies (see Appendix J for
+details). Unfortunately, using
+ˆck −c
+
+Σk amounts to an intractable algorithm [Chatterji et al., 2021],
+and thus to an undesirable result.
+Instead, as terminations are sampled on every time step (i.e., non-terminations are informative signals
+as well), we show we can obtain a local bound on the cost function c. Specifically, we show that the
+error
+ˆck
+h(s, a) −ch(s, a)
+ diminishes with nk
+h(s, a). The following result is a main contribution of
+our work, and the crux of our regret guarantees later on (see Appendix J for proof).
+Theorem 1 (Local Cost Estimation Confidence Bound). Let ˆck ∈arg maxc∈C Lk
+λ(c) be the maximum
+likelihood estimate of the costs. Then, for any δ > 0, with probability of at least 1−δ, for all episodes
+k ∈[K], timesteps h ∈[H −1] and state-actions (s, a) ∈S × A, it holds that
+ˆck
+h(s, a) −ch(s, a)
+ ≤O
+ nk
+h(s, a)
+−0.5√
+κSAHL3 log
+1
+δ
+
+1 +
+kL
+S2A2H
+
+.
+We note the presence of κ in our upper bound, a common factor [Chatterji et al., 2021], which is
+fundamental to our analysis, capturing the complexity of estimating the costs. Trajectories that saturate
+the logistic function lead to more difficult credit assignment. Specifically, when the accumulated costs
+are high, any additional penalty would only marginally change the termination probability, making
+its estimation harder. A similar argument can be made when the termination probability is low.
+We emphasize that in contrast to previous work on global reward feedback in RL [Chatterji et al.,
+2021, Efroni et al., 2020b], which focused specifically on settings in which information is provided
+only at the end of an episode, the TerMDP framework provides us with additional information
+whenever no termination occurs, allowing us to achieve strong, local bounds of the unknown costs.
+This observation is crucial for the design of a computationally tractable algorithm, as we will see
+both in theory as well in our experiments later on.
+3.1
+Termination Confidence Reinforcement Learning
+We are now ready to present our method for solving TerMDPs with unknown costs. Our pro-
+posed approach, which we call Termination Confidence Reinforcement Learning (TermCRL), is
+shown in Algorithm 1. Leveraging the local convergence guarantees of Theorem 1, we estimate
+the costs by maximizing the likelihood in Equation (1). We compensate for uncertainty in the
+4
+
+
+--- PAGE 5 ---
+Algorithm 2 TermPG
+1: require: window w, number of ensembles M, number of rollouts N, number of iterations K,
+policy gradient algorithm ALG-PG
+2: initialize: Bpos ←∅, Bneg ←∅, πθ ←random initialization
+3: for k = 1, . . . , K do
+4:
+Rollout N trajectories using πθ, R =
+n
+si
+1, ai
+1, ri
+1, . . . , si
+t∗
+i , ai
+t∗
+i , ri
+t∗
+i
+oN
+i=1.
+5:
+for i = 1, . . . , N do
+6:
+Add t∗
+i −1 negative examples
+
+smax{1,l−w+1}, amax{1,l−w+1}, . . . , sl, al
+t∗−1
+l=1 to Bneg.
+7:
+Add one positive example
+
+smax{1,t∗−w+1}, at∗−max{1,t∗−w+1}, . . . , st∗, at∗
+
+.
+8:
+end for
+9:
+Train bootstrap ensemble {cϕm}M
+m=1 using binary cross entropy over data Bneg, Bpos.
+10:
+Augment states in R by si
+l ←si
+l ∪Pmin{w,l}
+j=1
+minm cϕm(si
+l−j, ai
+l−j).
+11:
+Update policy πθ ←ALG-PG(R) with dynamic discount (see Section 4.2).
+12: end for
+reward, transitions, and costs by incorporating optimism. We define bonuses for the reward, tran-
+sition, and cost function by br
+k(h, s, a) = O
+q
+log(1/δ)
+nk
+h(s,a)∨1
+
+, bp
+k(h, s, a) = O
+q
+SH2 log(1/δ)
+nk
+h(s,a)∨1
+
+, and
+bc
+k(h, s, a) = O
+q
+κSAHL3
+nk
+h(s,a)∨1 log
+  1
+δ
+
+for some δ > 0 (see Appendix H.1 for explicit definitions).
+We add the reward and transition bonuses to the estimated reward (line 4), while the optimistic cost
+bonus is applied directly to the estimated costs (line 5). Then, a planner (line 7) solves the optimistic
+MDP for which the costs are known and are given by their optimistic counterparts. We refer the reader
+to Appendix G for further discussion on planning in TerMDPs. The following theorem provides
+regret guarantees for Algorithm 1. Its proof is given in Appendix I and relies on Theorem 1 and the
+analysis of UCRL [Auer et al., 2008, Efroni et al., 2019].
+Theorem 2. [Regret of TermCRL] With probability at least 1 −δ, the regret of Algorithm 1 is
+Reg(K) ≤O
+ s
+κS2A2H8.5L3K log3
+SAHK
+δ
+!
+.
+Compared to the standard regret of UCRL [Auer et al., 2008], an additional
+√
+κAH4L3 multiplicative
+factor is evident in our result, which is due to the convergence rates of the costs in Theorem 1.
+Motivated by our theoretical results, in what follows we propose a practical approach, inspired by
+Algorithm 1, which utilizes local cost confidence intervals in a deep RL framework.
+4
+Termination Policy Gradient
+Following the theoretical analysis in the previous section, we propose a practical approach for solving
+TerMDPs. Particularly, in this section, we devise a policy gradient method that accounts for the
+unknown costs leading to termination. We assume a stationary setup for which the transitions, rewards,
+costs, and policy are time-homogeneous. Our approach consists of three key elements: learning the
+costs, leveraging uncertainty estimates over costs, and constructing efficient value estimates through
+a dynamic cost-dependent discount factor.
+Algorithm 2 describes the Termination Policy Gradient (TermPG) method, which trains an ensemble
+of cost networks (to estimate the costs and uncertainty) over rollouts in a policy gradient framework.
+We represent our policy and cost networks using neural networks with parameters θ, {ϕm}M
+m=1. At
+every iteration, the agent rolls out N trajectories in the environment using a parametric policy, πθ.
+The rollouts are split into subtrajectories which are labeled w.r.t. the termination signal, where
+positive labels are used for examples that end with termination. Particularly, we split the rollouts
+into “windows" (i.e., subtrajectories of length w), where a rollout of length t∗, which ends with
+termination, is split into t∗−1 negative examples
+ smax{1,l−w+1}, amax{1,l−w+1}, . . . , sl, al
+t∗−1
+l=1 ,
+5
+
+
+--- PAGE 6 ---
+Model
+Ensemble
+Model
+Ensemble
+Model
+Ensemble
+Cross 
+Entropy 
+Loss
+Figure 2: Block diagram of the cost training procedure. Rollouts are split into subtrajectories, labeled according
+to whether they end in termination. Given the dataset of labeled subtrajectories, an ensemble of M cost networks
+is trained end-to-end using cross-entropy with bootstrap samples (all time steps share the same ensemble).
+and one positive example
+ smax{1,t∗−w+1}, at∗−max{1,t∗−w+1}, . . . , st∗, at∗
+. Similarly, a rollout
+of length H which does not end with termination contains H negative examples. We note that by
+taking finite windows, we assume the terminator “forgets" accumulated costs that are not recent -
+a generalization of the theoretical TerMDP model in Section 2, for which w = H. In Section 5,
+we provide experiments of misspecification of the true underlying window width, where this model
+assumption does not hold.
+4.1
+Learning the Costs
+Having collected a dataset of positive and negative examples, we train a logistic regression model
+consisting of an ensemble of M cost networks {cϕm}M
+m=1, shared across timesteps, as depicted in
+Figure 2. Specifically, for an example
+ smax{1,l−w+1}, amax{1,l−w+1}, . . . , sl, al
+
+we estimate the
+termination probability by ρ
+Pmin{w,l}
+j=1
+cϕm(sl−j+1, al−j+1) −bm
+
+, where {bm}M
+m=1 are learnable
+bias parameters. The parameters are then learned end-to-end using the cross entropy loss. We use
+the bootstrap method [Bickel and Freedman, 1981, Chua et al., 2018] over the ensemble of cost
+networks. This ensemble is later used in Algorithm 2 to produce optimistic estimates of the costs.
+Particularly, the agent policy πθ uses the current state augmented by the optimistic cummulative
+predicted cost, i.e., saug
+l
+= (sl, Coptimistic), where Coptimistic = Pmin{w,l}
+j=1
+minm cϕm(sl−j+1, al−j+1).
+Finally, the agent is trained with the augmented states using a policy gradient algorithm ALG-PG (e.g.,
+PPO [Schulman et al., 2017], IMPALA [Espeholt et al., 2018]).
+4.2
+Optimistic Dynamic Discount Factor
+While augmenting the state with the optimistic accumulated costs is sufficient for obtaining optimality,
+we propose to further leverage these estimates more explicitly – noticing that the finite horizon
+objective we are solving can be cast to a discounted problem. Particularly, it is well known that the
+discount factor γ ∈(0, 1) can be equivalently formulated as the probability of “staying alive" (see
+the discounted MDP framework, Puterman [2014]). Similarly, by augmenting the state s with the
+accumulated cost Ch = Ph
+t=1 c(st, at), we view the probability 1 −ρ(Ch) as a state-dependent
+discount factor, capturing the probability of an agent in a TerMDP to not be terminated.
+We define a dynamic, cost-dependent discount factor for value estimation. We use the state-action
+value function Q(s, a, C) over the augmented states, defined for any s, a, C by
+Qπ(s, a, C) = Eπ
+" H
+X
+t=1
+ 
+tY
+h=1
+γh
+!
+r(st, at)
+ s1 = s, a1 = a, C1 = C
+#
+,
+6
+
+
+--- PAGE 7 ---
+Figure 3: Mean reward with std. over five seeds of “Backseat Driver”. Left: coin avoidance; right: human
+termination. Variants with reward shaping (RS, orange and brown) penalize the agent with a constant value
+upon termination. The recurrent PG variant (green) uses a history-dependent policy without learning costs. The
+TermPG+Penalty variant (purple) penalizes the reward at every time step using the estimated costs.
+where γh = 1 −ρ
+
+C + Ph−1
+i=2 c(si, ai) −b
+
+. This yields the Termination Bellman Equations (see
+Appendix C for derivation)
+Qπ(s, a, C) = r(s, a) + (1 −ρ(C))Es′∼P (·|s,a),a′∼π(s′)[Qπ(s′, a′, C + c(s′, a′))].
+To incorporate uncertainty in the estimated costs, we use the optimistic accumulated costs
+Coptimistic
+=
+Pmin{w,l}
+j=1
+minm cϕm(sl−j+1, al−j+1).
+Then, the discount factor becomes
+γ(Coptimistic) = 1 −ρ(Coptimistic −b). Assuming that, w.h.p., optimistic costs are smaller than the true
+costs, the discount factor decreases as the agent exploits previously visited states.
+The dynamic discount factor allows us to obtain a more accurate value estimator. In particular, we
+leverage the optimistic cost-dependent discount factor γ(Coptimistic) in our value estimation procedure,
+using Generalized Advantage Estimation (GAE, Schulman et al. [2015]). As we will show in the
+next section, using the optimistic discount factor significantly improves overall performance.
+5
+Experiments
+In this section we evaluate the strength of our approach, comparing it to several baselines, including:
+(1) PG (naive): The standard policy gradient without additional assumptions, which ignores termi-
+nation. (2) Recurrent PG: The standard policy gradient with a history-dependent recurrent policy
+(without cost estimation or dynamic discount factor). As the history is a sufficient statistic of the
+costs, the optimal policy is realizable. (3) PG with Reward Shaping (RS): We penalize the reward
+upon termination by a constant value, i.e., r(s, a) −p1{sterm}, for some p > 0. This approach can
+be applied to any variant of Algorithm 2 or the methods listed above. (4) TermPG: Described in
+Algorithm 2. We additionally implemented two variants of TermPG, including: (5) TermPG with
+Reward Shaping: We penalize the reward with a constant value upon termination. (6) TermPG
+with Cost Penalty: We penalize the reward at every time step by the optimistic cost estimator, i.e.,
+r −αCoptimistic for some α > 0. All TermPG variants used an ensemble of three cost networks, and a
+dynamic cost-dependent discount factor, as described in Section 4.2. We report mean and std. of the
+total reward (without penalties) for all our experiments.
+Backseat Driver (BDr). We simulated a driving application, using MLAgents [Juliani et al., 2018],
+by developing a new driving benchmark, “Backseat Driver" (depicted in Figure 4), where we tested
+both synthetic and human terminations. The game consists of a five lane never-ending road, with
+randomly instantiating vehicles and coins. The agent can switch lanes and is rewarded for overtaking
+vehicles. In our experiments, states were represented as top view images containing the position of
+the agent, nearby cars, and coins with four stacked frames. We used a finite window of length 120 for
+termination (30 agent decision steps), mimicking a passenger forgetting mistakes of the past.
+BDr Experiment 1: Coin Avoidance. In the first experiment of Backseat Driver, coins are considered
+as objects the driver must avoid. The coins signify unknown preferences of the passenger, which are
+not explicitly provided to the agent. As the agent collects coins, a penalty is accumulated, and the
+agent is terminated probabilistically according to the logistic cost model in Section 2. We emphasize
+7
+
+
+--- PAGE 8 ---
+Figure 5: Results for MinAtar benchmarks. All runs were averaged over five seeds. Comparison of best
+performing TermPG variant to best performing PG variant (relative improvement percentage): 80% in Space
+Invaders, 150% in Seaquest, 410% in Breakout, and 90% in Asterix.
+that, while the coins are visible to the agent (i.e., part of the agent’s state), the agent only receives
+feedback from collecting coins through implicit terminations.
+Results for Backseat Driver with coin-avoidance termination are depicted in Figure 3. We compared
+TermPG (pink) and its two variants (brown, purple) to the PG (blue), recurrent PG (green), and
+reward shaping (orange) methods described above. Our results demonstrate that TermPG significantly
+outperforms the history-based and penalty-based baselines. We found TermPG (pink) to perform
+significantly better, doubling the reward of the best PG variant. All TermPG variants converged
+quickly to a good solution, suggesting fast convergence of the costs (see Appendix E).
+Figure 4: Backseat Driver
+BDr Experiment 2: Human Termination. To comple-
+ment our results, we evaluated human termination on Back-
+seat Driver. For this, we generated data of termination
+sequences from agents of varying quality (ranging from
+random to expert performance). We asked five human
+supervisors to label subsequences of this data by termi-
+nating the agent in situations of “continual discomfort".
+This guideline was kept ambiguous to allow for diverse
+termination signals. The final dataset consisted of 512
+termination examples. We then trained a model to pre-
+dict human termination and implemented it into Backseat
+Driver to simulate termination. We refer the reader to
+Appendix D for specific implementation details. Figure 3 shows results for human termination in
+Backseat Driver. As before, a significant performance increase was evident in our experiments.
+Additionally, we found that using a cost penalty (purple) or termination penalty (brown) for TermPG
+did not greatly affect performance.
+MinAtar. We further compared our method to the PG, recurrent PG, and reward shaping methods,
+on MinAtar [Young and Tian, 2019]. For each environment, we defined cost functions that do not
+necessarily align with the pre-specified reward, to mimic uncanny behavior that humans are expected
+to dislike. For example, in Breakout, the agent was penalized whenever the paddle remained in
+specific regions (e.g., sides of the screen), whereas in Space Invaders, the agent was penalized for
+8
+
+
+--- PAGE 9 ---
+Table 1: Summary of results (top) and ablations for TermPG (bottom). Standard deviation optimism did not
+have significant impact on performance. Removing optimism or the dynamic discount factor had negative impact
+on performance. TermPG was found to be robust to model misspecifcations of the accumulated cost window.
+Backseat Driver
+MinAtar
+Experiment
+Coin Avoid.
+Human
+Space Inv.
+Seaquest
+Breakout
+Asterix
+PG
+5.3 ± 0.8
+4.9 ± 1.5
+5.2 ± 1.8
+0.6 ± 0.4
+1.4 ± 2.8
+0.8 ± 0.3
+Recurrent PG
+3.4 ± 0.21
+5 ± 1.8
+2.8 ± 0.05
+0.1 ± 0.3
+0.7 ± 0.6
+0.7 ± 0.2
+PG + RS
+5.9 ± 1.4
+7.4 ± 1.7
+7.6 ± 2.3
+0.4 ± 0.2
+0.5 ± 0.03
+0.9 ± 0.2
+TermPG (ours)
+8.7 ± 1.4
+8.3 ± 1.3
+9.7 ± 1.1
+1.4 ± 0.8
+8.2 ± 0.3
+1 ± 0.2
+TermPG + RS (ours)
+8.4 ± 1.3
+7.7 ± 0.3
+11.8 ± 0.8
+0.3 ± 0.6
+5.1 ± 1
+0.8 ± 0.1
+TermPG + Penalty (ours)
+6 ± 0.8
+11.8 ± 1.5
+7.7 ± 1.4
+2.4 ± 1
+2.3 ± 2.3
+1.7 ± 0.1
+Ablation Test
+Coin Avoid.
+Human
+Space Inv.
+Seaquest
+Breakout
+Asterix
+Optimism with Ensemble Std.
+7.6 ± 2.1
+7.5 ± 1.1
+2.8 ± 0.02
+0.9 ± 0.6
+10.9 ± 1
+1 ± 0.1
+No Optimism
+7.8 ± 1.3
+8.8 ± 1.2
+5.2 ± 1.6
+0.7 ± 0.3
+1.3 ± 0.7
+1 ± 0.1
+No Dynamic Discount
+6.9 ± 0.6
+5.9 ± 0.7
+4.4 ± 1.8
+0.4 ± 0.1
+0.5 ± 0.02
+0.8 ± 0.1
+×0.5 Window Misspecification
+7.2 ± 1.1
+7.2 ± 0.5
+9.7 ± 3.1
+2.4 ± 0.4
+7.9 ± 0.8
+0.8 ± 0.1
+×2 Window Misspecification
+8.3 ± 0.1
+8.4 ± 0.2
+11.1 ± 3
+2.2 ± 0.2
+10.3 ± 0.8
+1 ± 0.1
+“near misses" of enemy bullets. We refer the reader to Appendix D for specific details of the different
+termination cost functions.
+Figure 5 depicts results on MinAtar. As with Backseat Driver, TermPG lead to significant improve-
+ment, often achieving a magnitude order as much reward as Recurrent PG. We found that adding a
+termination penalty and cost penalty produced mixed results, with them being sometimes useful (e.g.,
+Space Invaders, Sequest, Asterix), yet other times harmful to performance (e.g., Breakout). Therefore,
+we propose to fine-tune these penalties in Algorithm 2. Finally, we note that training TermPG was, on
+average, 67% slower than PG, on the same machine. Nevertheless, though TermPG was somewhat
+more computationally expensive, it showed a significant increase in overall performance. A summary
+of all of our results is presented in Table 1 (top).
+Ablation Studies. We present various ablations for TermPG in Table 1 (bottom). First, we tested
+the effect replacing the type of cost optimism in TermPG. In Section 4, cost optimism was defined
+using the minimum of the cost ensemble, i.e., min{cϕm}. Instead, we replaced the cost optimism
+to Coptimistic = mean{cϕm} −αstd{cϕm}, testing different values of α. Surprisingly, this change
+mostly decreased performance, except for Breakout, where it performed significantly better. Other
+ablations included removing optimism altogether (i.e., only using the mean of the ensemble), and
+removing the dynamic discount factor. In both cases we found a significant decrease in performance,
+suggesting that both elements are essential for TermPG to work properly and utilize the estimator of
+the unknown costs. Finally, we tested misspecifications of our model by learning with windows that
+were different from the environment’s real cost accumulation window. In both cases, TermPG was
+suprisingly robust to window misspecification, as performance remained almost unaffected by it.
+6
+Related Work
+Our setup can be linked to various fields, as listed below.
+Constrained MDPs. Perhaps the most straightforward motivations for external termination stems
+from constraint violation [Chow et al., 2018, Efroni et al., 2020a, HasanzadeZonuzy et al., 2020],
+where strict or soft constraints are introduced to the agent, who must learn to satisfy them. In these
+setups, which are often motivated by safety [Garcıa and Fernández, 2015], the constraints are usually
+known. In contrast, in this work, the costs are unknown and only implicit termination is provided.
+Reward Design.
+Engineering a good reward function is a hard task, for which frequent design
+choices may drastically affect performance [Oh et al., 2021]. Moreover, for tasks where humans are
+involved, it is rarely clear how to engineer a reward, as human preferences are not necessarily known,
+and humans are non-Markovian by nature [Clarke et al., 2013, Christiano et al., 2017]. Termination
+can thus be viewed as an efficient mechanism to elicit human input, allowing us to implicitly interpret
+human preferences and utility more robustly than trying to specify a reward.
+Global Feedback in RL. Recent work considered once-per-trajectory reward feedback in RL,
+observing either the cumulative rewards at the end of an episode [Efroni et al., 2020b, Cohen et al.,
+2021] or a logistic function of trajectory-based features Chatterji et al. [2021]. While these works are
+9
+
+
+--- PAGE 10 ---
+based on a similar solution mechanism, our work concentrates on a new framework, which accounts
+for non-Markovian termination. Additionally, we provide per-state concentration guarantees of the
+unknown cost function, compared to global concentration bounds in previous work [Abbasi-Yadkori
+et al., 2011, Zhang et al., 2016, Qi et al., 2018, Abeille et al., 2021]. Using our local guarantees, we
+are able to construct a scalable policy gradient solution, with significant improvement over recurrent
+and reward shaping based approaches.
+Preference-based RL. In contrast to traditional reinforcement learning, preference-based rein-
+forcement learning (PbRL) relies on subjective opinions rather than numerical rewards. In PbRL,
+preferences are captured through probabilistic rankings of trajectories [Wirth et al., 2016, 2017, Xu
+et al., 2020]. Similar to our work, Christiano et al. [2017] use a regression model to learn a reward
+function that could account for the preference feedback. Our work considers a different setting in
+which human feedback is provided through termination, where termination and reward may not align.
+7
+Discussion
+This paper formulated a new model to account for history-dependent exogenous termination in
+reinforcement learning. We defined the TerMDP framework and proposed a theoretically-guaranteed
+solution, as well as a practical policy-gradient approach. Our results showed significant improvement
+of our approach over various baselines. We stress that while it may seem as if the agent has two
+potentially conflicting goals—avoiding termination and maximizing reward—they are, in fact, aligned.
+The long-term consequences of actions need to account for longer survival which, in turn, allows
+for more reward collection. In what follows, we discuss κ, as factored in our regret bounds, as well
+possible limitations of our work.
+The Role of κ
+As shown in Theorem 2, κ plays a significant role in the regret bound of Algorithm 1.
+This linear dependence is induced from the confidence bounds of Theorem 1. Informally, κ is
+negligible whenever the costs c and bias b are “well behaved". Suppose Ph
+t=1 ct(sk
+t , ak
+t ) −b ≫0. In
+this case, κ would be large and termination would mostly occur after the first step. As such, estimation
+of the costs would be hard (see Chatterji et al. [2021]). Alternatively, suppose Ph
+t=1 ct(sk
+t , ak
+t )−b ≪
+0. In this case, κ would also be large. Here, credit assignment would make the cost estimation
+problem harder, as trajectories would span longer horizons. It is unclear, as to the writing of this
+work, if other solutions to TerMDPs could bring about stronger regret guarantees that significantly
+reduce their dependence on κ. We note that lower bounds, which include κ, have previously been
+established for the estimation problem (see Abeille et al. [2021], Faury et al. [2020], Jun et al. [2021]).
+Nevertheless, when searching for a policy which maximizes reward, it is unclear if estimation of the
+costs is indeed necessary for every state. We leave this direction for future work.
+Limitations and Negative Societal Impact
+A primary limitation of our work involves the linear
+dependence of the logistic termination model. In some settings, it might be hard to capture true
+human preferences and behaviors using a linear model. Nevertheless, when measured across the full
+trajectory, our empirical findings show that this model is highly expressive, as we demonstrated on
+real human termination data (Section 5). Additionally, we note that work in inverse RL [Arora and
+Doshi, 2021] also assumes such linear dependence of human decisions w.r.t. reward. Future work can
+consider more involved hypothesis classes, building upon our work to identify the optimal tradeoff
+between expressivity and convergence rate.
+Finally, we note a possible negative societal impact of our work. Termination is strongly motivated
+by humans interacting with the agent. This may be harmful if not carefully controlled, as learning
+incorrect or biased preferences may, in turn, result in unfavorable consequences, or if humans engage
+in adversarial behavior in order to mislead an agent. Our work discusses initial research in this
+domain. We encourage caution in real-world applications, carefully considering the possible effects
+of model errors, particularly in applications that affect humans.
+10
+
+
+--- PAGE 11 ---
+References
+Yasin Abbasi-Yadkori, Dávid Pál, and Csaba Szepesvári. Improved algorithms for linear stochastic
+bandits. Advances in neural information processing systems, 24, 2011.
+Marc Abeille, Louis Faury, and Clément Calauzènes. Instance-wise minimax-optimal algorithms
+for logistic bandits. In International Conference on Artificial Intelligence and Statistics, pages
+3691–3699. PMLR, 2021.
+Saurabh Arora and Prashant Doshi. A survey of inverse reinforcement learning: Challenges, methods
+and progress. Artificial Intelligence, 297:103500, 2021.
+Peter Auer, Thomas Jaksch, and Ronald Ortner. Near-optimal regret bounds for reinforcement
+learning. Advances in neural information processing systems, 21, 2008.
+KV Bhagwat and R Subramanian. Inequalities between means of positive operators. In Mathematical
+Proceedings of the Cambridge Philosophical Society, volume 83, pages 393–401. Cambridge
+University Press, 1978.
+Peter J Bickel and David A Freedman. Some asymptotic theory for the bootstrap. The annals of
+statistics, 9(6):1196–1217, 1981.
+Niladri Chatterji, Aldo Pacchiano, Peter Bartlett, and Michael Jordan. On the theory of reinforcement
+learning with once-per-episode feedback. Advances in Neural Information Processing Systems, 34,
+2021.
+Yinlam Chow, Ofir Nachum, Edgar Duenez-Guzman, and Mohammad Ghavamzadeh. A Lyapunov-
+based approach to safe reinforcement learning. Advances in neural information processing systems,
+31, 2018.
+Paul F Christiano, Jan Leike, Tom Brown, Miljan Martic, Shane Legg, and Dario Amodei. Deep
+reinforcement learning from human preferences. Advances in neural information processing
+systems, 30, 2017.
+Kurtland Chua, Roberto Calandra, Rowan McAllister, and Sergey Levine. Deep reinforcement
+learning in a handful of trials using probabilistic dynamics models. Advances in neural information
+processing systems, 31, 2018.
+AM Clarke, Johannes Friedrich, Walter Senn, EM Tartaglia, Silvia Marchesotti, and Michael H
+Herzog. Human learning in non-markovian decision making, 2013.
+Alon Cohen, Haim Kaplan, Tomer Koren, and Yishay Mansour. Online markov decision processes
+with aggregate bandit feedback. In Conference on Learning Theory, pages 1301–1329. PMLR,
+2021.
+Christoph Dann, Tor Lattimore, and Emma Brunskill. Unifying pac and regret: Uniform pac bounds
+for episodic reinforcement learning. In Advances in Neural Information Processing Systems, pages
+5713–5723, 2017.
+Yonathan Efroni, Nadav Merlis, Mohammad Ghavamzadeh, and Shie Mannor. Tight regret bounds
+for model-based reinforcement learning with greedy policies. Advances in Neural Information
+Processing Systems, 32, 2019.
+Yonathan Efroni, Shie Mannor, and Matteo Pirotta. Exploration-exploitation in constrained mdps.
+arXiv preprint arXiv:2003.02189, 2020a.
+Yonathan Efroni, Nadav Merlis, and Shie Mannor. Reinforcement learning with trajectory feedback.
+arXiv preprint arXiv:2008.06036, 2020b.
+Lasse Espeholt, Hubert Soyer, Remi Munos, Karen Simonyan, Vlad Mnih, Tom Ward, Yotam Doron,
+Vlad Firoiu, Tim Harley, Iain Dunning, et al. Impala: Scalable distributed deep-rl with importance
+weighted actor-learner architectures. In International Conference on Machine Learning, pages
+1407–1416. PMLR, 2018.
+11
+
+
+--- PAGE 12 ---
+Louis Faury, Marc Abeille, Clément Calauzènes, and Olivier Fercoq. Improved optimistic algorithms
+for logistic bandits. In International Conference on Machine Learning, pages 3052–3060. PMLR,
+2020.
+Javier Garcıa and Fernando Fernández. A comprehensive survey on safe reinforcement learning.
+Journal of Machine Learning Research, 16(1):1437–1480, 2015.
+Aria HasanzadeZonuzy, Dileep M Kalathil, and Srinivas Shakkottai. Learning with safety con-
+straints: Sample complexity of reinforcement learning for constrained mdps. arXiv preprint
+arXiv:2008.00311, 2020.
+Arthur Juliani, Vincent-Pierre Berges, Ervin Teng, Andrew Cohen, Jonathan Harper, Chris Elion,
+Chris Goy, Yuan Gao, Hunter Henry, Marwan Mattar, et al. Unity: A general platform for intelligent
+agents. arXiv preprint arXiv:1809.02627, 2018.
+Kwang-Sung Jun, Lalit Jain, Blake Mason, and Houssam Nassif. Improved confidence bounds for
+the linear logistic model and applications to bandits. In International Conference on Machine
+Learning, pages 5148–5157. PMLR, 2021.
+B Ravi Kiran, Ibrahim Sobh, Victor Talpaert, Patrick Mannion, Ahmad A Al Sallab, Senthil Yogamani,
+and Patrick Pérez.
+Deep reinforcement learning for autonomous driving: A survey.
+IEEE
+Transactions on Intelligent Transportation Systems, 2021.
+Nevena Lazic, Craig Boutilier, Tyler Lu, Eehern Wong, Binz Roy, MK Ryu, and Greg Imwalle.
+Data center cooling using model-predictive control. Advances in Neural Information Processing
+Systems, 31, 2018.
+Scott Le Vine, Alireza Zolfaghari, and John Polak. Autonomous cars: The tension between occupant
+experience and intersection capacity. Transportation Research Part C: Emerging Technologies, 52:
+1–14, 2015.
+Eric Liang, Richard Liaw, Robert Nishihara, Philipp Moritz, Roy Fox, Ken Goldberg, Joseph
+Gonzalez, Michael Jordan, and Ion Stoica. Rllib: Abstractions for distributed reinforcement
+learning. In International Conference on Machine Learning, pages 3053–3062. PMLR, 2018.
+Amol Mandhane, Anton Zhernov, Maribeth Rauh, Chenjie Gu, Miaosen Wang, Flora Xue, Wendy
+Shang, Derek Pang, Rene Claus, Ching-Han Chiang, et al. Muzero with self-competition for rate
+control in vp9 video compression. arXiv preprint arXiv:2202.06626, 2022.
+Hamidreza Modares, Isura Ranatunga, Frank L Lewis, and Dan O Popa. Optimized assistive human–
+robot interaction using reinforcement learning. IEEE transactions on cybernetics, 46(3):655–667,
+2015.
+Inseok Oh, Seungeun Rho, Sangbin Moon, Seongho Son, Hyoil Lee, and Jinyun Chung. Creating
+pro-level ai for a real-time fighting game using deep reinforcement learning. IEEE Transactions
+on Games, 2021.
+Martin L Puterman. Markov decision processes: discrete stochastic dynamic programming. John
+Wiley & Sons, 2014.
+Yi Qi, Qingyun Wu, Hongning Wang, Jie Tang, and Maosong Sun. Bandit learning with implicit
+feedback. Advances in Neural Information Processing Systems, 31, 2018.
+John Schulman, Philipp Moritz, Sergey Levine, Michael Jordan, and Pieter Abbeel. High-dimensional
+continuous control using generalized advantage estimation. arXiv preprint arXiv:1506.02438,
+2015.
+John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov. Proximal policy
+optimization algorithms. arXiv preprint arXiv:1707.06347, 2017.
+Dilip Singh Sisodia, Somdutta Vishwakarma, and Abinash Pujahari. Evaluation of machine learning
+models for employee churn prediction. In 2017 international conference on inventive computing
+and informatics (icici), pages 1016–1020. IEEE, 2017.
+12
+
+
+--- PAGE 13 ---
+Yi-Fan Wang, Ding-An Chiang, Mei-Hua Hsu, Cheng-Jung Lin, and I-Long Lin. A recommender
+system to avoid customer churn: A case study. Expert Systems with Applications, 36(4):8071–8075,
+2009.
+Tsachy Weissman, Erik Ordentlich, Gadiel Seroussi, Sergio Verdu, and Marcelo J Weinberger.
+Inequalities for the l1 deviation of the empirical distribution. Hewlett-Packard Labs, Tech. Rep,
+2003.
+Christian Wirth, Johannes Fürnkranz, and Gerhard Neumann. Model-free preference-based reinforce-
+ment learning. In Thirtieth AAAI Conference on Artificial Intelligence, 2016.
+Christian Wirth, Riad Akrour, Gerhard Neumann, Johannes Fürnkranz, et al. A survey of preference-
+based reinforcement learning methods. Journal of Machine Learning Research, 18(136):1–46,
+2017.
+Yichong Xu, Ruosong Wang, Lin Yang, Aarti Singh, and Artur Dubrawski. Preference-based
+reinforcement learning with finite-time guarantees. Advances in Neural Information Processing
+Systems, 33:18784–18794, 2020.
+Kenny Young and Tian Tian. Minatar: An atari-inspired testbed for thorough and reproducible
+reinforcement learning experiments. arXiv preprint arXiv:1903.03176, 2019.
+Lijun Zhang, Tianbao Yang, Rong Jin, Yichi Xiao, and Zhi-Hua Zhou. Online stochastic linear
+optimization under one-bit feedback. In International Conference on Machine Learning, pages
+392–401. PMLR, 2016.
+Meixin Zhu, Yinhai Wang, Ziyuan Pu, Jingyun Hu, Xuesong Wang, and Ruimin Ke. Safe, effi-
+cient, and comfortable velocity control based on reinforcement learning for autonomous driving.
+Transportation Research Part C: Emerging Technologies, 117:102662, 2020.
+13
+
+
+--- PAGE 14 ---
+Checklist
+1. For all authors...
+(a) Do the main claims made in the abstract and introduction accurately reflect the paper’s
+contributions and scope? [Yes]
+(b) Did you describe the limitations of your work? [Yes]
+(c) Did you discuss any potential negative societal impacts of your work? [Yes]
+(d) Have you read the ethics review guidelines and ensured that your paper conforms to
+them? [Yes]
+2. If you are including theoretical results...
+(a) Did you state the full set of assumptions of all theoretical results? [Yes]
+(b) Did you include complete proofs of all theoretical results? [Yes]
+3. If you ran experiments...
+(a) Did you include the code, data, and instructions needed to reproduce the main experi-
+mental results (either in the supplemental material or as a URL)? [Yes]
+(b) Did you specify all the training details (e.g., data splits, hyperparameters, how they
+were chosen)? [Yes]
+(c) Did you report error bars (e.g., with respect to the random seed after running experi-
+ments multiple times)? [Yes]
+(d) Did you include the total amount of compute and the type of resources used (e.g., type
+of GPUs, internal cluster, or cloud provider)? [Yes]
+4. If you are using existing assets (e.g., code, data, models) or curating/releasing new assets...
+(a) If your work uses existing assets, did you cite the creators? [Yes]
+(b) Did you mention the license of the assets? [N/A]
+(c) Did you include any new assets either in the supplemental material or as a URL? [Yes]
+(d) Did you discuss whether and how consent was obtained from people whose data you’re
+using/curating? [N/A]
+(e) Did you discuss whether the data you are using/curating contains personally identifiable
+information or offensive content? [N/A]
+5. If you used crowdsourcing or conducted research with human subjects...
+(a) Did you include the full text of instructions given to participants and screenshots, if
+applicable? [N/A]
+(b) Did you describe any potential participant risks, with links to Institutional Review
+Board (IRB) approvals, if applicable? [N/A]
+(c) Did you include the estimated hourly wage paid to participants and the total amount
+spent on participant compensation? [N/A]
+14
+
+
+--- PAGE 15 ---
+Table of Contents
+A Motivation
+17
+B
+TerMDPs with Known Costs
+18
+C Dynamic Discount Factor
+21
+D Implementation Details
+22
+D.1
+Environments
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+22
+D.2 TermPG . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+23
+D.3
+Human Termination Data . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+23
+E Additional Results
+25
+F
+Additional Theoretical Notations
+26
+G Approximate Planning in TerMDPs
+27
+G.1 Approximation Bounds for Quantized TerMDPs
+. . . . . . . . . . . . . . . . .
+27
+G.2
+Regret Bound for Approximate Planner . . . . . . . . . . . . . . . . . . . . . .
+29
+H Failure Events and Optimism
+30
+H.1
+Optimism
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+30
+I
+Regret Analysis
+33
+J
+Cost Concentration
+36
+J.1
+Optimization Procedure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+36
+J.2
+Global Cost Concentration
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+36
+J.3
+From Global to Local Cost Concentration . . . . . . . . . . . . . . . . . . . . .
+38
+K Useful Lemmas
+42
+15
+
+
+--- PAGE 16 ---
+ORGANIZATION OF THE APPENDIX
+This appendix is organized as follows. We begin by further discussing motivations of our setting in
+autonomous driving and recommender system tasks in Appendix A. The first part of the appendix
+is then mostly focused on the empirical aspects, while the second part is mostly focused on the
+theoretical aspects, as well as missing proofs.
+In Appendix B we discuss the TerMDP model in which costs are known. In this setting, we show that
+the costs are indeed sufficient for finding an optimal policy. That is, one need not care about the full
+history to account for termination, and only the current state and accumulated costs are needed to
+identify an optimal policy (i.e., achieve the same value as the optimal history-dependent policy).
+In Appendix C we discuss the dynamic discount factor and derive the corresponding Termination
+Bellman Equations, as presented in Section 4.2. In Appendix D we discuss implementation details,
+including descriptions of the different environment and cost functions, TermPG implementations
+details and hyperparameters, and the construction of the human termination data. In Appendix E we
+provide some additional experimental results on the cost error and adding a cost bonus to the reward.
+Appendix G is focused on the problem of approximate planning in known TerMDPs. Here, we
+show that, by discretizing the costs on a grid, we can achieve near optimal performance through an
+approximate optimistic planner.
+Finally, Appendices H to K provide full proofs of Theorems 1 and 2. In Appendix H we define
+failure events and bonuses for optimism in Algorithm 1. Appendix I analyzes and proves the regret
+guarantees in Theorem 2, and Appendix J provides proof for Theorem 1. Finally in Appendix K we
+state auxiliary lemmas used throughout our analysis.
+16
+
+
+--- PAGE 17 ---
+A
+Motivation
+We begin by describing two concrete examples in which non-Markovian termination naturally occurs:
+overrides in autonomous driving and users abandoning recommender systems.
+Autonomous Driving. A myriad of factors affect the quality of a driving policy. These include safety,
+navigation efficiency, comfort, legislation, as well as specific preferences of the passengers. As these
+may be difficult to characterize quantitatively, heuristic metrics are derived and optimized. When
+a policy is released, these unknown factors may be enforced by a driving passenger, overriding the
+policy. For instance, a passenger might perceive a safe driving as dangerous due to differences between
+human and autonomous vehicle capabilities, thus halting the driving policy. This complication may
+be resolved by learning how to overcome such termination from previous occurrences.
+Recommender Systems. Companies that recommend items to users may find contrasting goals
+between maximizing revenue and overall user satisfaction. For example, top-selling items which
+are recommended repeatedly can antagonize the user. Other popular items might offend the user or
+undermine the recommendation engine’s credibility. Similar to the autonomous driving problem, user
+abandonment constitutes a critical signal, which may be caused by continual user dissatisfaction.
+The original criteria should therefore be optimized while also learning and accounting for these
+non-Markovian and unknown preferences.
+17
+
+
+--- PAGE 18 ---
+B
+TerMDPs with Known Costs
+In this section we define the TerMDP model with known costs. We show that the accumulated costs at
+time step h, i.e., Ch = Ph−1
+t=1 c(st, at) and the current state sh are a sufficient statistic for computing
+an optimal policy π∗. That is, the history τ1:h = (s1, a1, s2, a2, . . . , sh−1, ah−1) can be replaced
+by the accumulated costs Ch. To see this, we define an equivalent MDP, for which the state space
+is augmented by the accumulated costs, and show that an optimal policy of the augmented MDP
+achieves the optimal value of a history dependent optimal policy of the TerMDP.
+We define the augmented MDP Maug = (Saug, Aaug, Paug, Raug, H), where Saug = S × R is the
+augmented state space, and Aaug = A is the (unchanged) action space. The augmented transition
+function is defined for s, C ∈S × R, a ∈A, s′, C′ ∈S × R
+Paug(s′, C′|s, C, a) = 1{C′ = C + c(s, a)} ·
+
+
+
+
+
+
+
+1
+, s′ = s = sterm
+ρ(C)
+, s ̸= s′ = sterm
+(1 −ρ(C))P(s′|s, a)
+, s, s′ ̸= sterm
+0
+, o.w.
+.
+Finally, the augmented reward function Raug satisfies raug,h(sk
+aug,h = (sk
+h, C), ˜ak
+h) = rh(sk
+h, ak
+h).
+Next, consider the TerMDP with known costs MT
+=
+(S, A, P, R, H, c), and let Ch
+=
+Ph−1
+t=1 c(st, at). Then,
+P(sh+1, Ch+1|sh, ah, τ1:h) = P(sh+1, Ch+1|sh, ah, τ1:h, Ch)
+= 1{Ch+1 = Ch + c(sh, ah)} ·
+
+
+
+
+
+
+
+1
+, sh+1 = sh = sterm
+ρ(Ch)
+, sh ̸= sh+1 = sterm
+(1 −ρ(Ch))P(sh+1|sh, ah)
+, sh, sh+1 ̸= sterm
+0
+, o.w.
+= Paug(sh+1, Ch+1|sh, Ch, ah) = Paug(saug,h+1|saug,h, ah).
+To prove that the costs are sufficient for optimality, we prove a more general result. Particularly,
+define an MDP (S1 × S2, A, P, r, H), and let f : S2 7→D, where D is some known domain. Define
+the following set of deterministic policies
+Πaug = {π : S1 × S2 7→A : ∃η : S1 × D 7→[0, 1], π(s1, s2) = η(s1, f(s2)}.
+Define the augmented optimal value for some s ∈S1 × S2
+V ∗
+aug,1(s1, s2) = max
+π∈Πaug E
+" H
+X
+t=1
+rt(st, at)
+ s1 = s1, s2 = s2, at ∼πt(s1, s2)
+#
+.
+We will show that if the reward does not depend on S2, and if P(s′
+1, f(s′
+2)|s1, s2, a)
+=
+P(s′
+1, f(s′
+2)|s1, f(s2), a), then V ∗
+aug,1(s1, s2) = V ∗
+1 (s1, s2). This will prove that costs are indeed
+sufficient, as playing any policy in Πaug in the original MDP and achieve the same value. To see this,
+choose S2 to be the set of possible trajectories in the known TerMDP, and let
+f(τ1:h) = f(s1, a1, s2, a2, . . . sh−1, ah−1) =
+h−1
+X
+t=1
+c(st, at).
+Then, since we previously showed that raug,h(sk
+aug,h
+=
+(sk
+h, C), ˜ak
+h)
+=
+rh(sk
+h, ak
+h) and
+P(sh+1, Ch+1|sh, ah, τ1:h) = Paug(saug,h+1|saug,h, ah), this concludes our claim. The formal result
+is stated and proved below.
+Proposition 1. Let M = (S1 × S2, A, P, r, H). Assume for any s1, s2 ∈S1 × S2, a ∈A,
+P(s′
+1, f(s′
+2)|s1, s2, a) = P(s′
+1, f(s′
+2)|s1, f(s2), a) and r(s1, s2, a) = g(s1, a), for some determinis-
+tic function g : S1 × A 7→[0, 1]. Then, for any s1, s2 ∈S1 × S2,
+V ∗
+aug,1(s1, s2) = V ∗
+1 (s1, s2).
+18
+
+
+--- PAGE 19 ---
+Proof. We prove by induction on h ∈[H].
+For h = H, the result follows trivially since
+V ∗
+aug,H(s1, s2)
+=
+V ∗
+H(s1, s2)
+=
+maxa r(s1, s2, a).
+Next, assume that V ∗
+aug,k+1(s1, s2)
+=
+V ∗
+k+1(s1, s2) for some k ∈{1, . . . , H −1} and all s1, s2 ∈S1 × S2. Then, by the Bellman
+Equations,
+V ∗
+k (s1, s2) = max
+a∈A r(s1, s2, a) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, s2, a)V ∗
+k+1(s′
+1, s′
+2)
+induction step
+=
+max
+a∈A r(s1, s2, a) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, s2, a)V ∗
+aug,k+1(s′
+1, s′
+2)
+= max
+a∈A g(s1, a) +
+X
+s′
+1∈S1
+X
+C∈D
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, a)V ∗
+aug,k+1(s′
+1, s′
+2)
+Next, by Lemma 1, there exists U ∗
+k+1 : S1 × D 7→R such that V ∗
+aug,k+1(s1, s2) = U ∗
+k+1(s1, f(s2)),
+for all s1, s2 ∈S1 × S2. Then,
+X
+C∈D
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, a)V ∗
+aug,k+1(s′
+1, s′
+2) =
+X
+C∈D
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, a)U ∗
+k+1(s′
+1, f(s′
+2))
+=
+X
+C∈D
+U ∗
+k+1(s′
+1, C)
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, a)
+=
+X
+C∈D
+U ∗
+k+1(s′
+1, C)P(s′
+1, f(s′
+2) = C|s1, s2, a).
+Using the assumption, we have that P(s′
+1, f(s′
+2) = C|s1, s2, a) = P(s′
+1, f(s′
+2) = C|s1, f(s2), a).
+Then,
+X
+C∈D
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, a)V ∗
+aug,k+1(s′
+1, s′
+2) =
+X
+C∈D
+U ∗
+k+1(s′
+1, C)P(s′
+1, f(s′
+2) = C|s1, f(s2), a)
+=
+X
+s′
+2∈S2
+P(s′
+1, s′
+2|s1, f(s2), a)V ∗
+aug,k+1(s′
+1, s′
+2).
+where the last step follows a similar argument as above. Combining the above we get that
+V ∗
+k (s1, s2) = V ∗
+aug,k+1(s′
+1, s′
+2)
+= max
+a∈A g(s1, a) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, f(s2), a)V ∗
+aug,k+1(s′
+1, s′
+2)
+=
+max
+η:S1×D7→[0,1] g(s1, η(s1, f(s2))) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, f(s2), η(s1, f(s2)))V ∗
+aug,k+1(s′
+1, s′
+2)
+=
+max
+η:S1×D7→[0,1] r(s1, s2, η(s1, f(s2))) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, s2, η(s1, f(s2)))V ∗
+aug,k+1(s′
+1, s′
+2)
+= max
+π∈Πaug r(s1, s2, π(s1, s2)) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, s2, π(s1, s2))V ∗
+aug,k+1(s′
+1, s′
+2)
+= V ∗
+aug,k(s1, s2)
+This completes the proof.
+Lemma 1. Let M = (S1 × S2, A, P, r, H).
+Assume for any s1, s2 ∈S1 × S2, a ∈A,
+P(s′
+1, f(s′
+2)|s1, s2, a) = P(s′
+1, f(s′
+2)|s1, f(s2), a) and r(s1, s2, a) = g(s1, a), for some determinis-
+tic function g : S1 × A 7→[0, 1]. Then, for any k ∈[H], there exists U ∗
+k : S1 × D 7→R such that
+V ∗
+aug,k(s1, s2) = U ∗
+k(s1, f(s2)), for all s1, s2 ∈S1 × S2.
+Proof. We prove by induction on k. For k = H, the result follows trivially as V ∗
+aug,H(s1, s2) =
+maxa g(s1, a) for all s1, s2 ∈S1 × S2. Otherwise, we the V ∗
+aug,k+1(s1, s2) = U ∗(s1, f(s2)) is true
+19
+
+
+--- PAGE 20 ---
+for some k ∈{1, . . . , H −1}. Then,
+V ∗
+aug,k(s1, s2) = max
+π∈Πaug r(s1, s2, π(s1, f(s2)) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, s2, π(s1, f(s2))V ∗
+k+1(s′
+1, s′
+2)
+induction step
+=
+max
+π∈Πaug r(s1, s2, π(s1, f(s2)) +
+X
+s′
+1,s′
+2∈S1×S2
+P(s′
+1, s′
+2|s1, s2, π(s1, f(s2))U ∗
+k+1(s′
+1, f(s′
+2))
+= max
+π∈Πaug g(s1, π(s1, f(s2)) +
+X
+s′
+1∈S1
+X
+C∈D
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, π(s1, f(s2))U ∗
+k+1(s′
+1, f(s′
+2))
+= max
+π∈Πaug g(s1, π(s1, f(s2)) +
+X
+s′
+1∈S1
+X
+C∈D
+U ∗
+k+1(s′
+1, C)
+X
+s′
+2:f(s′
+2)=C
+P(s′
+1, s′
+2|s1, s2, π(s1, f(s2))
+= max
+π∈Πaug g(s1, π(s1, f(s2)) +
+X
+s′
+1∈S1
+X
+f(s′
+2)∈D
+P(s′
+1, f(s′
+2)|s1, s2, π(s1, f(s2))U ∗
+k+1(s′
+1, f(s′
+2))
+= max
+π∈Πaug g(s1, π(s1, f(s2)) +
+X
+s′
+1∈S1
+X
+f(s′
+2)∈D
+P(s′
+1, f(s′
+2)|s1, f(s2), π(s1, f(s2))U ∗
+k+1(s′
+1, f(s′
+2))
+By defining
+U ∗
+k(s1, f(s2)) = max
+π∈Πaug g(s1, π(s1, f(s2)) +
+X
+s′
+1∈S1
+X
+f(s′
+2)∈D
+P(s′
+1, f(s′
+2)|s1, f(s2), π(s1, f(s2))U ∗
+k+1(s′
+1, f(s′
+2)),
+we see that V ∗
+aug,k(s1, s2) = U ∗
+k(s1, f(s2)), for any s1, s2 ∈S1, S2, and the proof is complete.
+20
+
+
+--- PAGE 21 ---
+C
+Dynamic Discount Factor
+In this section we derive the Termination Bellman Equations, as defined in Section 4.2. The state
+action value function for a TerMDP with known costs (Appendix B) is defined for s, C ∈S × R,
+a ∈A, h ∈[H], and any policy π by
+Qπ
+h(s, C, a) = Eπ
+
+
+H
+X
+t=h
+
+
+tY
+j=h+1
+γj
+
+rt(st, at)
+
+sh = s, Ch = C, ah = a
+
+,
+where we denote
+γj = 1 −ρ(Cj −b).
+(2)
+Then, for any h ∈[H −1] we have that
+Qπ
+h(s, C, a)
+= Eπ
+
+
+H
+X
+t=h
+
+
+tY
+j=h+1
+γj
+
+rt(st, at)
+
+sh = s, Ch = C, ah = a
+
+
+= rh(s, a) + γh+1Eπ
+
+
+H
+X
+t=h+1
+
+
+tY
+j=h+2
+γj
+
+rt(st, at)
+
+sh = s, Ch = C, ah = a
+
+
+= rh(s, a) + γh+1Es′∼P (·|s,a),a′∼π(s′)
+
+Eπ
+
+
+H
+X
+t=h+1
+
+
+tY
+j=h+2
+γj
+
+rt(st, at)
+
+sh=s,Ch=C,ah=a,
+sh+1=s′,Ch+1=C+s(s′,a′),ah+1=a′
+
+
+
+
+= rh(s, a) + γh+1Es′∼P (·|s,a),a′∼π(s′)
+
+Eπ
+
+
+H
+X
+t=h+1
+
+
+tY
+j=h+2
+γj
+
+rt(st, at)
+
+sh+1 = s′, Ch+1 = C + s(s′, a′), ah+1 = a′
+
+
+
+
+= rh(s, a) + γh+1Es′∼P (·|s,a),a′∼π(s′)
+
+Qπ
+h+1(s′, C + c(s′, a′), a′)
+
+= rh(s, a) + (1 −ρ(C −b))Es′∼P (·|s,a),a′∼π(s′)
+
+Qπ
+h+1(s′, C + c(s′, a′), a′)
+
+.
+We get the Termination Bellman Equations
+Qπ
+h(s, C, a) = rh(s, a) + (1 −ρ(C −b))Es′∼P (·|s,a),a′∼π(s′)
+
+Qπ
+h+1(s′, C + c(s′, a′), a′)
+
+.
+Similarly, we can define an infinite horizon setting, for which
+Qπ(s, C, a) = Eπ
+
+
+∞
+X
+t=0
+
+
+tY
+j=2
+γj
+
+rt(st, at)
+
+s1 = s, C1 = C, a1 = a
+
+,
+which yields the infinite horizon Termination Bellman Equations
+Qπ(s, C, a) = r(s, a) + (1 −ρ(C −b))Es′∼P (·|s,a),a′∼π(s′)[Qπ(s′, C + c(s′, a′), a′)]
+Having defined the Termination Bellman Equations, we use them for value estimation. Specifically,
+we consider estimating the value by minimizing the TD-error, for some s, C, a, s′, a′
+|Q(s, C, a) −r(s, a) −(1 −ρ(C −b))Q(s′, C + c(s′, a′), a′)| .
+In our implementation, we used Generalized Advantage Estimation (GAE, Schulman et al. [2015]),
+which uses an exponential average over estimates of the TD-error. We used the discount factor in
+Equation (2) for the TD estimates. That is, an exponential average over
+ˆA(n) =
+∞
+X
+t=0
+
+
+n−1
+Y
+j=2
+γj
+
+rt(st, at) +
+
+
+n
+Y
+j=2
+γj
+
+ˆV (sn) −ˆV (s1).
+See Schulman et al. [2015] for specific implementation details of GAE.
+21
+
+
+--- PAGE 22 ---
+D
+Implementation Details
+In this section we describe in detail the implementation details of the used environments, cost
+functions, algorithm, and human termination procedure.
+D.1
+Environments
+We begin by describing the environments and cost functions used in our paper. In all environments we
+used a bias b = 6 for termination, which was unknown to the training agent. For all our environments
+(except human termination, see Appendix D.3), we used a window size of w = 30.
+Backseat Driver.
+The environment was built using Unity’s MLAgents [Juliani et al., 2018]. We
+incorporated a reward and cost function in the environment as follows. A reward of +0.1 was given
+to the agent for any car that was onscreen and behind it (i.e., the agent was awarded for overtaking
+other vehicles). The environment was set to accumulate a cost of +1 for every coin that was collected.
+No negative reward was given by the environment upon death or termination.
+In Backseat Driver, the agent can take one of three actions: change lane left, change lane right, or
+stay in place. If the agent hits another car the episode is terminated and the agent is reset. The state
+is represented by a stack of three binary maps consisting of the agent position, the other vehicle
+positions, and the coin positions (top view). Similar to previous work, we used the past four time
+steps (stacked) as the agent’s state. That is, at time t, the agent receives 12 binary maps consisting
+of the agent position, other vehicle positions, and coin positions for steps t, t −1, t −2, t −3. For
+efficient learning, we repeated every action four times in the environment.
+MinAtar.
+We used four of the original MinAtar benchmarks [Young and Tian, 2019], enforcing
+termination using a predefined cost-function. For each of the environments, we used a cost function
+which was dependent on the agent’s position w.r.t. objects and areas of the state. Specifically, we
+defined costs as follows.
+• Space Invaders: The agent controls a spaceship and must shoot other alien spacecrafts,
+while they also shoot bullets at the agent.
+The agent was penalized (c = 1) for bullets passing at distance d = 1 from its current
+position. That is, near-misses of enemy bullets penalized the player. Ideally, the agent must
+learn to play the game while avoiding dangerous states in which one erroneous action can
+lose the game.
+• Seaquest: In this environment, the agent controls a submarine. The agent must shoot
+enemies, avoid hitting objects (enemies, fish, or bullets), and carefully replenish its oxygen
+by moving to the surface.
+The agent was penalized (c = 1) whenever it was positioned mid-depth. That is, denoting
+by D the maximum reachable depth, the agent was penalized whenever it was positioned
+at depth D/2. Ideally, the agent would remain close to the surface or deep in the water,
+avoiding unnecessary switches, to minimize termination.
+• Breakout: In this game, the agent controls a paddle and can move it (left or right), bouncing
+a ball, which can hit rows of bricks. The agent is rewarded for breaking these bricks. If the
+paddle misses the ball, the agent loses and resets.
+The agent was penalized (c = 1) whenever it was positioned at the far-most left or right
+positions of the screen, i.e., close to the edges of the screen. Ideally, the agent would remain
+close to the center of the screen, where it can quickly reach the ball, and avoid getting
+“stuck" at the sides of the screen.
+• Asterix: The agent can move in any of the directions: up, down, left, or right, while avoiding
+spawned enemies, and picking up treasure. If the player hits an enemy, the agent loses and
+resets.
+The agent was penalized (c = 1) whenever it was positioned at distance d = 1 from an
+enemy. Similar to previous environments, this cost function was used to encourage the agent
+to stay away from enemies. Ideally, the agent should not be too close to enemies, for which
+one erroneous action could lose the game.
+22
+
+
+--- PAGE 23 ---
+Table 2: Hyperparameters used to train PPO agent
+Name
+Value
+Comments
+Batch size
+32
+Learning rate
+5 × 10−5
+Rollout size
+1024
+Num epochs
+3
+How many training epochs to do after each rollout
+Entropy coef.
+0
+kl coef
+0.2
+Initial coefficient for KL divergence
+kl target
+0.01
+Target value for KL divergence
+GAE λ
+1
+The GAE (lambda) parameter
+Num workers
+8
+Table 3: CNN architecture hyperparameters for agent policy and cost networks
+Input size
+42 × 42
+Num Filters
+16, 32, 256
+Stride
+4, 4, 11
+Padding
+2, 2, 1
+Activations
+Relu
+Post-network FC hidden
+400, 256
+D.2
+TermPG
+TermPG (Algorithm 2) uses two key elements - a policy gradient algorithm (ALG-PG), and a training
+procedure for learning the costs and designing a dynamic cost-dependent discount factor, as described
+in Section 4. For the policy gradient algorithm, we used Proximal Policy Optimization (PPO, see
+Schulman et al. [2017]), implemented in RLlib [Liang et al., 2018]. We mostly used the default
+hyperparameters – full specification is given in Table 2. We used the same hyperparemeters for the
+TermPG variants and the standard PG variants described in Section 5, with one important exception –
+the PG variants used a constant discount factor γ = 0.99, whereas the TermPG variants did not use a
+discount factor 6, as the dynamic discount factor was used instead (Section 4.2). The agent used a
+convolutional neural network (CNN), with hyperparameters given Table 3.
+For learning the costs, we used a model of three identical cost networks. At every iteration, rollouts
+that were collected in the environments were added to a finite buffer (FIFO) for training the cost
+networks. We labeled the rollouts according to whether they ended in termination. For training the
+cost networks we then sampled a (different) rollout from the buffer for each of the cost networks.
+We then split each of the rollouts to their respective windows (t∗−1 negative labels and 1 positive
+label for a trajectory ending in termination). Finally, we trained them the cost networks end-to-end
+using the cross entropy loss (see Figure 2). We repeated this procedure for 30 steps. We used the
+same network for training the cost model as we used for the PPO agent, with hyperparameters given
+in Table 3. Hyperparameters for the TermPG algorithm are given in Table 4.
+D.3
+Human Termination Data
+In this subsection we describe in detail our process of creating and training the human termination
+data for Backseat Driver. To begin, we used the Backseat Environment without termination (i.e., we
+considered the standard infinite horizon MDP). We trained an agent using PPO on the infinite horizon
+environment (without termination), saving snapshots of the agent during training. Once training was
+over we used the snapshots to generate trajectories from the different agents, constructing a large
+dataset of over 5000 trajectories of different quality.
+To obtain termination feedback, we randomly sampled trajectories from the generated dataset and
+played them back to a human supervisor, who was instructed to terminate the agent. The instructions
+6We also used a constant discount factor of γ = 0.99 for the ablation test of removing the dynamic discount
+factor in TermPG (Section 5, Table 1).
+23
+
+
+--- PAGE 24 ---
+Table 4: TermPG hyperparameters
+Name
+Value
+Comments
+Learning rate
+1 × 10−3
+Bonus coefficient
+1
+Coefficient used for cost bonus (optimism)
+Num Ensemble
+3
+Cost-net train steps
+30
+Cost-net batch size
+t∗
+Each network receives all windows in trajectory (t∗examples for every network)
+Replay buffer size
+1000
+Number of trajectories held in buffer
+Window size
+30
+for termination were to terminate the agent whenever it drives in a manner that is uncomfortable. In
+many scenarios the human supervisors terminated the agent when it switched lanes back and forth for
+no apparent reason (e.g., not for overtaking other vehicles). We used five different human supervisors
+for labeling random trajectories in the dataset, generating a total of 512 positive termination examples.
+Once the data generation was complete, we trained a classifier for the termination problem with
+different window size. We found that a window size of w = 35 best fit the termination accuracy (on a
+validation set). Finally, we used the trained model as an estimated termination signal for Backseat
+Driver. We emphasize that, while we used the same termination window (w = 35) for training the
+TermPG agent, we ran experiments with ×x2, ×0.5 misspecification of window size, showing that
+these did not hurt performance (see Section 5, Table 1).
+24
+
+
+--- PAGE 25 ---
+Figure 6: Cost Error for Backseat Driver
+E
+Additional Results
+Cost Error.
+We plot the cost error (l2 norm) of the estimated costs in Backseat Driver in both the
+synthetic and human termination settings in Figure 6. It can be seen that costs converge quickly,
+allowing for efficient learning. The speedy convergence suggests that TermPG can utilize the costs
+efficiently, enabling it to converge quickly to a good solution, as seen in our experiments in Section 5.
+Cost Bonus.
+In TermPG (Algorithm 2) optimism is used by augmenting the state with an optimistic
+cost function. Nevertheless, this information is implicit, as it only passes through the state. We tested
+the affect of adding optimism in costs (to encourage exploration in areas of uncertainty in costs)
+directly through the reward function. Specifically, we used an uncertainty (defined by the ensemble
+of cost networks) to add a bonus to the reward
+r(st, at) ←r(st, at) + αU(Ct),
+where U(Ct) is either the max-min difference or the standard deviation in the ensemble outputs, and
+α > 0 is a hyperparameter for choosing the degree of optimism in the reward.
+Results for training TermPG with a cost bonus are presented in Table 5. Evidently, adding a cost
+bonus mostly hurt performance, even with small values of α. These results suggest that adding
+additional cost bonus to the reward is not beneficial, and using optimism in the states is sufficient.
+Table 5: Cost bonus for TermPG (other TermPG results are provided for reference.)
+Backseat Driver
+MinAtar
+Experiment
+Coin Avoid.
+Human
+Space Inv.
+Seaquest
+Breakout
+Asterix
+TermPG
+8.7 ± 1.4
+8.3 ± 1.3
+9.7 ± 1.1
+1.4 ± 0.8
+8.2 ± 0.3
+1 ± 0.2
+TermPG + RS
+8.4 ± 1.3
+7.7 ± 0.3
+11.8 ± 0.8
+0.3 ± 0.6
+5.1 ± 1
+0.8 ± 0.1
+TermPG + Penalty
+6 ± 0.8
+11.8 ± 1.5
+7.7 ± 1.4
+2.4 ± 1
+2.3 ± 2.3
+1.7 ± 0.1
+Cost Bonus with α = 0.1
+6.6 ± 0.45
+7.9 ± 0.7
+6.5 ± 1.46
+1.4 ± 1.1
+2.2 ± 0.2
+0.9 ± 0.2
+Cost Bonus with α = 1
+7.3 ± 0.7
+4.8 ± 1.14
+2.8 ± 0.02
+1.9 ± 0.1
+0.2 ± 0.05
+0.6 ± 0.3
+25
+
+
+--- PAGE 26 ---
+F
+Additional Theoretical Notations
+This section adds further notations needed for the sections that follow. Particularly, we define
+notations that are not provided in the paper for clarity, yet are beneficial for our theoretical analysis.
+Throughout the paper, we work w.r.t. the natural filtration
+Fk = σ
+
+(s1
+h, a1
+h, R1
+h)
+	H
+h=1, . . . ,
+
+(sk
+h, ak
+h, Rk
+h)
+	H
+h=1, sk+1
+1
+
+.
+We use the notation τ k
+1:h when referring to the trajectory of the agent at the kth episode. For
+brevity, we denote τ k = τ k
+1:H.
+Similarly, we denote the empirical visitation up to the hth
+time step ˆdk
+h(t, s, a) = 1
+
+t ≤h, sk
+t = s, ak
+t = a
+	
+. With abuse of notation, we assume the bias
+term b is consumed by the cost c, such that the first state always contains the bias term, i.e.,
+c(s1, a1) := c(s1, a1) −b.
+Using this notation, we can write the termination probability af-
+ter the hth time step in vector notation as ρ
+ 
+ ˆdk
+h, c
+
+. We then define the total transition func-
+tion by T P,c
+h
+(s′|sk
+h, ak
+h, τ k
+1:h) =
+
+1 −ρ
+ 
+ ˆdk
+h, c
+
+Ph(s′|sk
+h, ak
+h) for any non-terminal s′ ∈S and
+T P,c
+h
+(sterm|sk
+h, ak
+h, τ k
+1:h) = ρ
+ 
+ ˆdk
+h, c
+
+. For brevity, when working with the real kernel and costs P, c,
+we omit them from the notation and use Th. Finally we denote by ¯X optimism for some quantity X,
+e.g., ¯V is the optimistic value.
+26
+
+
+--- PAGE 27 ---
+G
+Approximate Planning in TerMDPs
+We consider the following planning procedure for a known TerMDP MT = (S, A, P, R, H, c) (see
+Appendix B). For the approximate planning, we quantize the costs in this TerMDP to a resolution ∆c.
+Concretely, denote the lattice of resolution ∆x by G∆x = {. . . , −2∆x, ∆x, 0, ∆x, 2∆x, . . .}. We
+then define the discretized cost function, for a discretization parameter ∆c as
+cq =
+j c
+∆c
+k
+∆c
+In this case, the accumulated cost must also lie on a grid such that C = P
+t cq,t ∈G∆c. We denote by
+cmax = maxs,a |c(s, a)|. Notice that cmax ≤L, where L is known, but cmax is usually much smaller.
+We denote the number of bins of the costs by N, which is generally bounded by N ≤2 cmax
+∆c + 1.
+For non-negative costs, we will show that a much smaller N suffices (Appendix G.1.2). Then, due
+to the grid structure, the accumulated costs can obtain at most HN different values. This allows
+us to perform standard planning procedure in episodic MDPs (using dynamic programming/value
+iteration) with a state space of size NHS, which requires computation complexity of O
+ H3AS2N 2
+[Puterman, 2014]. In the rest of this section, we show how to choose ∆c so that this approximate
+planner will yield a near-optimal policy. Particularly, we show that ∆c = O(1/
+√
+K) maintains the
+same regret guarantees (namely, incurs lower-order regret penalty) while enabling tractable planning.
+G.1
+Approximation Bounds for Quantized TerMDPs
+Denote the quantized TerMDP by Mq
+T = (S, A, P, R, H, cq). For a policy π, we denote by V π, V π
+q
+its value in MT and Mq
+T , respectively. We define a policy πq as the solution to the planning
+problem in the quantized TerMDP. In what follows we show that for any ϵ > 0 one can ensure
+V ∗
+1 (s1) −V πq
+1 (s1) < ϵ for some choice of ∆c.
+Notice that we always rounded-down the costs (decreased the termination probability) and, thus,
+V π ≤V π
+q for any π. Particularly, for π∗, we get that
+V ∗= V π∗optimism
+≤
+V π∗
+q
+optimality of
+πq in Mq
+T
+≤
+V πq
+q
+= V πq +
+ V πq
+q
+−V πq
+.
+Therefore, it is enough to show that V πq
+q
+−V πq < ϵ. We will show that a stronger results, that
+V π
+q −V π < ϵ for any π.
+By the value difference lemma (Lemma 8), for any policy π
+V π
+q,1(s1) −V π
+1 (s1) =
+H
+X
+h=1
+E
+h
+T P,cq
+h
+−T P,c
+h
+
+(·|sh, ah, τ1:h)T V π
+1 (·, τ1:h+1)
+i
+≤
+H
+X
+h=1
+E
+h
+
+T P,cq
+h
+−T P,c
+h
+
+(·|sh, ah, τ1:h)
+
+1 ∥V π
+1 (·, τ1:h+1)∥∞
+i
+≤H
+H
+X
+h=1
+E
+h
+
+T P,cq
+h
+−T P,c
+h
+
+(·|sh, ah, τ1:h)
+
+1
+i
+= H
+H
+X
+h=1
+E
+
+
+ρ
+ 
+ ˆdh, cq
+
+−ρ
+ 
+ ˆdh, c
+ ∥Ph(·|sh, ah)∥1
+|
+{z
+}
+=1
++
+
+
+1 −ρ
+ 
+ ˆdh, cq
+
+−
+
+1 −ρ
+ 
+ ˆdh, c
+
+
+
+= 2H
+H
+X
+h=1
+E
+hρ
+ 
+ ˆdh, cq
+
+−ρ
+ 
+ ˆdh, c
+
+i
+27
+
+
+--- PAGE 28 ---
+G.1.1
+General Case: Signed Costs
+By the Lipschitz-continuity of the logistic function, we have that
+V π
+q,1(s1) −V π
+1 (s1) ≤2H
+H
+X
+h=1
+E
+hρ
+ 
+ ˆdh, cq
+
+−ρ
+ 
+ ˆdh, c
+
+i
+≤H
+2
+H
+X
+h=1
+E
+h
+
+ ˆdh, cq −c
+
+i
+≤H
+2
+H
+X
+h=1
+E
+
+
+ ˆdh
+
+1
+| {z }
+=h
+∥cq −c∥∞
+|
+{z
+}
+≤∆c
+
+
+≤H3∆c
+2
+We get that, for any ϵ > 0, using ∆c ≤
+2ϵ
+H3 we get that V π
+q,1(s1) −V π
+1 (s1) ≤ϵ. Note that, this choice
+of grid resolution induces N = O
+ H3 cmax
+ϵ
+
+G.1.2
+Better Approximation for Non-Negative Costs
+We remind the reader that in Appendix E we incorporated the bias b into the costs c, such that
+c(s1, a1) := c(s1, a1) −b. This was helpful for utilizing inner product notations in our analysis. In
+this part, we assume the costs are positive, yet we do not limit the choice of bias b. Specifically, we
+assume that for all h ≥2, and for all s, a ∈S × A, c(sh, ah) ≥0. We further assume that for all
+s, a ∈S × A, c(s1, a1) ≥−b. This relates to a TerMDP with positive costs and an arbitrary bias b.
+Let C∗∈(0, Hcmax] (will be explicitly chosen later). We show that, in the case of non-negative
+costs, it can be beneficial to clip the accumulated cost, once it is larger than C∗(even if it is smaller
+than Hcmax). Particularly, if Ph
+t=1 cq,t(st, at) ≥C∗, we represent the accumulated cost by C∗.
+This, in turn, implies that the accumulated costs can have at most N =
+j
+C∗+b
+∆c
+k
++ 1 bins.
+Notice that by the definition of the logistic function, for any C0 and any C ≥C0, it holds that
+ρ(C) ≥ρ(C0) = (1 + exp(−C0))−1 ≥1 −exp(−C0).
+Therefore, since ρ(C) ≤1, we have for any C ≥C0 that |ρ(C) −ρ(C0| ≤exp(−C0).
+Also, denote h∗= min
+n
+h ∈[H] :
+
+ ˆdh, cq
+
+> C∗o
+. Then,
+V π
+q,1(s1) −V π
+1 (s1) ≤2H
+H
+X
+h=1
+E
+hρ
+ 
+ ˆdh, cq
+
+−ρ
+ 
+ ˆdh, c
+
+i
+= 2HE
+"h∗−1
+X
+h=1
+ρ
+ 
+ ˆdh, cq
+
+−ρ
+ 
+ ˆdh, c
+ +
+H
+X
+h=h∗
+ρ
+ 
+ ˆdh, cq
+
+−ρ
+ 
+ ˆdh, c
+
+#
+≤2HE
+1
+4(h∗−1)2∆c + (H −h∗) exp(−C∗)
+
+≤H3∆c
+2
++ 2H2 exp(−C∗).
+In the second inequality, we also used the lipschitz property of the logistic function. Moreover, we
+used the fact that the costs are non-negative – if the accumulated cost is larger than C∗at h∗, then it
+is larger than C∗for any h ≥h∗.
+Finally, for any ϵ > 0, we set ∆c =
+ϵ
+H3 and C∗= log
+
+4H2
+ϵ
+
+, which ensure an error smaller than ϵ.
+This parameter choice induces N = O
+
+H3 log
+
+H2
+ϵ
+
++b
+ϵ
+
+– potentially much smaller than the general
+case for which we get O
+ H3 cmax
+ϵ
+
+.
+28
+
+
+--- PAGE 29 ---
+G.2
+Regret Bound for Approximate Planner
+We integrate the approximate planner into Algorithm 1 and show that the regret bound is only mildly
+affected for ϵ = O
+
+1/
+√
+K
+
+(or ∆c = O
+
+1
+H3√
+K
+
+). Particularly, instead of accurately solving the
+TerMDP
+ S, A, H, ¯rk, ˆP k, ¯ck
+, we apply our approximate planner and denote its output policy by
+πk
+q . Its value in the optimistic TerMDP is denoted by ¯V
+πk
+q
+1
+(sk
+1).
+Now, following the regret analysis of Appendix I, we have that
+Reg(K) =
+K
+X
+k=1
+V ∗
+1 (sk
+1) −V
+πk
+q
+1
+(sk
+1)
+≤
+K
+X
+k=1
+¯V k
+1 (sk
+1) −V
+πk
+q
+1
+(sk
+1)
+=
+K
+X
+k=1
+¯V
+πk
+q
+1
+(sk
+1) −V
+πk
+q
+1
+(sk
+1) +
+K
+X
+k=1
+¯V k
+1 (sk
+1) −¯V
+πk
+q
+1
+(sk
+1)
+The first term can be bounded exactly as in the regret analysis of Appendix I, while the second bound
+is controlled by the approximation error of the planner, namely ϵK. Thus, choosing ϵ = O
+
+1/
+√
+K
+
+leads to a negligible second term, allowing efficient planning while maintaining the stated regret
+bound of Theorem 2.
+29
+
+
+--- PAGE 30 ---
+H
+Failure Events and Optimism
+In this section we focus on defining failure events and derive the bonuses described in Section 3.
+Particularly, we will use these to show that the optimistic TerMDP (line 7 of Algorithm 1), used for
+planning, satisfies the needed optimism (i.e., larger than the optimal value), which will be used in the
+proof of Theorem 2.
+We define the following failure events.
+F r
+k =
+
+
+∃s, a, h : |rh(s, a) −ˆrk
+h(s, a)| >
+s
+2 log 2SAHK
+δ′
+nk
+h(s, a) ∨1
+
+
+
+F p
+k =
+
+
+∃s, a, h :
+Ph(· | s, a) −ˆP k
+h (· | s, a)
+
+1 >
+s
+4S log 3SAHK
+δ′
+nk
+h(s, a) ∨1
+
+
+
+F n =
+( K
+X
+k=1
+E
+" H
+X
+h=1
+1
+p
+nk
+h(sk
+h, ak
+h) ∨1
+| Fk−1
+#
+> 16H2 log
+ 1
+δ′
+
++ 4SAH2 + 2
+√
+2
+p
+SAH2K log HK
+)
+F c
+k =
+
+
+∃s, a, h :
+ch(s, a) −ˆck
+h(s, a)
+ > 24
+√
+κSAH2.5(L + 1)1.5 log2
+ 4
+δ′
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+1
+q
+nk
+h(s, a) + 4
+SAH
+L
+√
+H+0.5
+
+
+
+Furthermore, the following relations hold.
+• Let F r = SK
+k=1 F r
+k . Then Pr{F r} ≤δ′, by Hoeffding’s inequality, and using a union
+bound argument on all s, a, and all possible values of nk(s, a) and k. Furthermore, for
+n(s, a) = 0 the bound holds trivially since r ∈[0, 1].
+• Let F P = SK
+k=1 F p
+k . Then Pr{F p} ≤δ′, holds by [Weissman et al., 2003] while applying
+union bound on all s, a, and all possible values of nk
+h(s, a) and k. Furthermore, for n(s, a) =
+0 the bound holds trivially.
+• Pr{F n} ≤δ′ by Lemma 9.
+• Let F c = SK
+k=1 F c
+k. Then Pr{F c} ≤δ′ for all k ≥1 by Lemma 6.
+We define the good event as the event where all failure events do not occur for all k ∈[K], namely,
+G = ¬F r T ¬F p T ¬F n T ¬F c. Then, the following holds:
+Lemma 2 (Good event). Setting δ′ = δ
+4 then Pr{F r S F p S F n S F c} ≤δ. When the failure
+events does not hold we say the algorithm is outside the failure event, or inside the good event G.
+H.1
+Optimism
+Following the events in G (Lemma 2) we define the following bonuses.
+br
+k(h, s, a) =
+s
+2 log 8SAHK
+δ
+nk
+h(s, a) ∨1
+bp
+k(h, s, a) = H
+s
+4S log 12SAHK
+δ
+nk
+h(s, a) ∨1
+bc
+k(h, s, a) = 24
+√
+κSAH2.5(L + 1)1.5 log2
+16
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+1
+q
+nk
+h(s, a) + 4
+SAH
+L
+√
+H+0.5
+.
+30
+
+
+--- PAGE 31 ---
+The total reward bonus is defined as brp
+k (h, s, a) = br
+k(h, s, a)+bp
+k(h, s, a). Adding the reward bonus
+and subtracting the cost bonus leads to an optimistic MDP, as we prove in the following lemma.
+Lemma 3 (Optimism). Let ¯V k be the optimal value of the optimistic MDP MT
+ S, A, H, ¯rk, ˆP k, ¯ck
+,
+clipped by H, i.e., for all h ∈[H], s ∈S
+¯V k
+h (s, τ1:h) = min
+n
+V ∗
+MT (s, τ1:h), H
+o
+.
+Then, under the good event G, for any k ∈[K], s ∈[S], history τ1:h and h ∈[H], it holds that
+¯V k
+h (s, τ1:h) ≥V ∗(s, τ1:h)
+Proof. We prove the claim by an induction over h.
+First, the induction trivially holds for h = H + 1, since ¯V k
+h (s, τ1:h) = V ∗(s, τ1:h) = 0.
+Now, let h ∈[H] and assume that the claim holds for h′ = h + 1, ∀s ∈S and τ1:h′.
+Denote:
+a∗∈arg max
+a
+
+rh(s, a) + Th(· | s, a, τ1:h)T V ∗
+h+1(·, τ1:h ∪(s, a))
+	
+.
+Recall that τ1:h = (sh−1, ah−1, . . . , s1, a1) is the history up to time h, and for brevity, denote
+τ ∗
+1:h+1 ≜(s, a∗) ∪τ1:h = (s, a∗, sh−1, ah−1, . . . , s1, a1), the history up to time h + 1 when visiting
+s and playing a∗on the hth timestep. Also, with some abuse of notation, we let [TV ](s, a, τ) =
+T(·|s, a, τ)T V (·, (s, a) ∪τ) and similarly define [PV ](s, a, τ) = P(·|s, a)T V (·, (s, a) ∪τ). Finally,
+denote by dτ the vector with elements dτ(h, s, a) = 1 if (sh, ah) ∈τ and 0 otherwise. Then,
+¯V k
+h (s, τ1:h) −V ∗
+h (s, τ1:h)
+= max
+a
+n
+¯rk
+h(s, a) +
+h
+T
+ˆ
+Pk,¯ck
+h
+¯V k
+h+1
+i
+(s, a, τ1:h)
+o
+−max
+a
+
+rh(s, a) +
+
+ThV ∗
+h+1
+
+(s, a, τ1:h)
+	
+(1)
+≥¯rk
+h(s, a∗) +
+h
+T
+ˆ
+Pk,¯ck
+h
+¯V k
+h+1
+i
+(s, a∗, τ1:h) −rh(s, a∗) −
+
+ThV ∗
+h+1
+
+(s, a∗, τ1:h)
+(2)
+≥¯rk
+h(s, a∗) +
+h
+T
+ˆ
+Pk,¯ck
+h
+V ∗
+h+1
+i
+(s, a∗, τ1:h) −rh(s, a∗) −
+
+ThV ∗
+h+1
+
+(s, a∗, τ1:h)
+= ¯rk
+h(s, a∗) −rh(s, a∗) +
+h
+T
+ˆ
+Pk,¯ck
+h
+−Th
+
+V ∗
+h+1
+i
+(τ ∗
+1:h+1)
+= ¯rk
+h(s, a∗) −rh(s, a∗) +
+h
+T
+ˆ
+Pk,¯ck
+h
+−T P,¯ck
+h
+
+V ∗
+h+1
+i
+(τ ∗
+1:h+1) +
+h
+T P,¯ck
+h
+−Th
+
+V ∗
+h+1
+i
+(τ ∗
+1:h+1)
+(3)
+= ¯rk
+h(s, a∗) −rh(s, a∗)
++
+
+1 −ρ
+ 
+dτ ∗
+h+1, ¯c
+h
+ˆPh −P
+
+V ∗
+h+1
+i
+(τ ∗
+1:h+1)
++
+
+ρ
+ 
+dτ ∗
+h+1, c
+
+−ρ
+ 
+dτ ∗
+h+1, ¯c
+
+PV ∗
+h+1
+
+(τ ∗
+1:h+1)
+(4)
+= ˆrk
+h(s, a∗) −rh(s, a∗) + br
+k(h, s, a∗)
+|
+{z
+}
+(a)
++
+
+1 −ρ
+ 
+dτ ∗
+h+1, ¯c
+h
+ˆPh −P
+
+V ∗
+h+1
+i
+(τ ∗
+1:h+1) + bp
+k(h, s, a∗)
+|
+{z
+}
+(b)
++
+
+ρ
+ 
+dτ ∗
+h+1, c
+
+−ρ
+ 
+dτ ∗
+h+1, ˆc −bc
+k
+
+PV ∗
+h+1
+
+(τ ∗
+1:h+1)
+|
+{z
+}
+(c)
+Relation (1) is is due to the definition of the max-operator and the fact that a∗is the optimal action
+in the true MDP. Next, (2) is due to the induction step that ¯V k
+h ≥V ∗
+h . (3) is by the TerMDP model
+assumption (and since the value at termination is 0), and (4) is by the definitions of ¯rk
+h(s, a) and ¯c.
+We now turn to bound each of the three terms under the good event.
+31
+
+
+--- PAGE 32 ---
+Term (a): Reward Optimism.
+(a) = ˆrk
+h(s, a∗) −rh(s, a∗) + br
+k(h, s, a∗) ≥−br
+k(h, s, a∗) + br
+k(h, s, a∗) = 0,
+where the first transition holds under the good event, and specifically, event ¬F r).
+Term (b): Transition Optimism.
+(b) =
+
+1 −ρ
+ 
+dτ ∗
+h+1, ¯c
+h
+ˆPh −P
+
+V ∗
+h+1
+i
+(τ ∗
+1:h+1) + bp
+k(h, s, a∗)
+≥−
+1 −ρ
+ 
+dτ ∗
+h+1, ¯c
+
+ ˆPh(· | s, a∗) −P(· | s, a∗)
+
+1
+V ∗
+h+1(·, τ ∗
+1:h+1)
+
+∞+ bp
+k(h, s, a∗)
+≥−H
+ ˆPh(· | s, a∗) −P(· | s, a∗)
+
+1 + bp
+k(h, s, a∗)
+≥−bp
+k(h, s, a∗) + bp
+k(h, s, a∗)
+= 0.
+The first transition is by Hölder’s inequality. The second is by the fact ∀x, ρ(x) ∈[0, 1] and
+V ∗
+h+1(·, τ ∗
+1:h+1)
+
+∞≤H. The third transition is by under the good event, and specifically, event
+¬F p.
+Term (c): Termination Cost Optimism.
+First, notice that under the good event (and specifi-
+cally, event ¬F c, see Lemma 6) and by the definition of the bonus bc
+k, it holds for any h, s, a that
+ˆch(s, a) −bc
+k(h, s, a) ≤ch(s, a). Therefore, as for any h, s, a and τ, dτ(h, s, a) ≥0, it also holds
+that
+D
+dτ ∗
+h+1, ˆc −bc
+k
+E
+≤
+D
+dτ ∗
+h+1, c
+E
+. Finally, by the monotonicity of ρ and the non-negativity of
+
+PV ∗
+h+1
+
+(τ ∗
+1:h+1), we have that
+(c) =
+
+ρ
+ 
+dτ ∗
+h+1, c
+
+−ρ
+ 
+dτ ∗
+h+1, ˆc −bc
+k
+
+PV ∗
+h+1
+
+(τ ∗
+1:h+1)
+≥
+
+ρ
+ 
+dτ ∗
+h+1, c
+
+−ρ
+ 
+dτ ∗
+h+1, c
+
+PV ∗
+h+1
+
+(τ ∗
+1:h+1)
+= 0
+By plugging in the bounds for each of the above terms we get that
+¯V k
+h (s, τ1:h) −V ∗
+h (s, τ1:h) ≥0,
+which concludes the proof by the induction hypothesis.
+32
+
+
+--- PAGE 33 ---
+I
+Regret Analysis
+We state the main result (Theorem 2) explicitly below. We note that in Theorem 2 we used the
+O-notation, which assumes that L = O(SAH).
+Theorem 3 (Regret of TermCRL). With probability at least 1 −δ, the regret of Algorithm 1 is
+Reg(K) ≤
+
+16H2 log
+4
+δ
+
++ 4SAH2 + 2
+√
+2
+p
+SAH2K log HK
+
+×
+ 
+2
+r
+2 log 8SAHK
+δ
++ 2H
+r
+4S log 12SAHK
+δ
++ 32H2√
+κSAH(L + 1)1.5 log
+16
+δ
+
+1 + k(L + 0.5)
+16S2A2H
+ r
+L + 0.5
+4SAH ∨1
+!!
+.
+Proof. Under the good event, the regret is bounded by
+Reg(K) =
+K
+X
+k=1
+V ∗
+1 (sk
+1) −V πk
+1
+(sk
+1)
+(1)
+≤
+K
+X
+k=1
+¯V k
+1 (sk
+1) −V πk
+1
+(sk
+1)
+(2)
+=
+K
+X
+k=1
+H
+X
+h=1
+E
+h
+(¯rk
+h −r)(sk
+h, ak
+h) + (T
+ˆ
+Pk,¯ck
+h
+−Th)(·|sk
+h, ak
+h, τ k
+1:h)T ¯V πk
+h+1(·, τ k
+1:h+1)
+ Fk−1
+i
+(3)
+≤
+K
+X
+k=1
+H
+X
+h=1
+E
+
+(¯rk
+h −r)(sk
+h, ak
+h)|Fk−1
+
++
+K
+X
+k=1
+H
+X
+h=1
+E
+h (T
+ˆ
+Pk,¯ck
+h
+−Th)(·|sk
+h, ak
+h, τ k
+1:h)
+
+1
+ ¯V πk
+h+1(·, τ k
+1:h+1)
+
+∞
+ Fk−1
+i
+≤
+K
+X
+k=1
+H
+X
+h=1
+E
+
+(¯rk
+h −r)(sk
+h, ak
+h)
+ Fk−1
+
+|
+{z
+}
+(a)
++ H
+K
+X
+k=1
+H
+X
+h=1
+E
+h (T
+ˆ
+Pk,¯ck
+h
+−T P,¯ck
+h
+)(·|sk
+h, ak
+h, τ k
+1:h)
+
+1
+ Fk−1
+i
+|
+{z
+}
+(b)
++ H
+K
+X
+k=1
+H
+X
+h=1
+E
+h (T P,¯ck
+h
+−Th)(·|sk
+h, ak
+h, τ k
+1:h)
+
+1
+ Fk−1
+i
+|
+{z
+}
+(c)
+.
+(1) is due to the optimism of the value function (see Lemma 3) and (2) is by the value difference
+lemma (Lemma 8). Notice that to use this lemma, we extended the state space to include the
+previously visited trajectory. (3) is due to Hölder’s inequality.
+Term (a): Reward Concentration.
+Under the Good event (see Lemma 2), and by the definition of
+the bonus terms br
+k we have that
+K
+X
+k=1
+H
+X
+h=1
+E
+
+(¯rk−1
+h
+−r)(sk
+h, ak
+h)
+ Fk−1
+
+≤
+K
+X
+k=1
+H
+X
+h=1
+E
+
+2br
+k(h, sk
+h, ak
+h) + bp
+k(h, sk
+h, ak
+h)
+ Fk−1
+
+.
+Term (b): Transition Concentration.
+Recall that
+T P,c
+h
+(·|sk
+h, ak
+h, τ k
+1:h) = ρ
+ 
+ ˆdk
+h, c
+
+P(·|sk
+h, ak
+h),
+33
+
+
+--- PAGE 34 ---
+and since ρ ∈(0, 1) we have that
+K
+X
+k=1
+H
+X
+h=1
+HE
+h(T
+ˆ
+Pk,¯ck
+h
+−T P,¯ck
+h
+)(·|sk
+h, ak
+h, τ k
+1:h)
+
+1 |Fk−1
+i
+≤
+K
+X
+k=1
+H
+X
+h=1
+HE
+h( ˆPk −P)(·|sk
+h, ak
+h)
+
+1 |Fk−1
+i
+≤
+K
+X
+k=1
+H
+X
+h=1
+E
+
+bp
+k(h, sk
+h, ak
+h)|Fk−1
+
+,
+where the last transition is by the good event (Lemma 2) and the definition of bp
+k.
+Term (c): Termination Cost Concentration.
+H
+K
+X
+k=1
+H
+X
+h=1
+E
+h (T P,¯ck
+h
+−Th)(·|sk
+h, ak
+h, τ k
+1:h)
+
+1
+ Fk−1
+i
+= H
+K
+X
+k=1
+H
+X
+h=1
+E
+
+
+ρ
+ 
+ ˆdk
+h, ¯ck
+−ρ
+ 
+ ˆdk
+h, c
+
+Ph(·|sk
+h, ak
+h)
+
+1
+|
+{z
+}
+=1
++
+
+
+1 −ρ
+ 
+ ˆdk
+h, ¯ck
+−
+
+1 −ρ
+ 
+ ˆdk
+h, c
+ |Fk−1
+
+
+= 2H
+K
+X
+k=1
+H
+X
+h=1
+E
+h ρ
+ 
+ ˆdk
+h, ¯ck
+−ρ
+ 
+ ˆdk
+h, c
+
+ Fk−1
+i
+(i)
+≤2H
+K
+X
+k=1
+H
+X
+h=1
+E
+h 
+D
+ˆdk
+h, ¯ck −c
+E
+ Fk−1
+i
+(ii)
+≤2H
+K
+X
+k=1
+H
+X
+h=1
+h
+X
+t=1
+E
+ ¯ck
+t (sk
+t , ak
+t ) −ct(sk
+t , ak
+t )
+  Fk−1
+
+(iii)
+≤4H
+K
+X
+k=1
+H
+X
+h=1
+h
+X
+t=1
+E
+
+bc
+k(t, sk
+t , ak
+t )
+ Fk−1
+
+≤4H2
+K
+X
+k=1
+H
+X
+h=1
+E
+
+bc
+k(h, sk
+h, ak
+h)
+ Fk−1
+
+,
+(i) is by the fact ρ(·) is 1-Lipschitz. (ii) is by the fact ∀h, s, a ˆdk
+h ∈{0, 1}. (iii) is by the definition
+of ¯c and under the good event by Lemma 6.
+Combining all the above terms, we get
+Reg(K) ≤4
+K
+X
+k=1
+H
+X
+h=1
+E
+
+br
+k(h, sk
+h, ak
+h) + bp
+k(h, sk
+h, ak
+h) + H2bc
+k(h, sk
+h, ak
+h)|Fk−1
+
+.
+Now, plugging in the bonus terms and bounding,
+bc
+k(h, s, a) = 24
+√
+κSAH2.5(L + 1)1.5 log2
+16
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+1
+q
+nk
+h(s, a) + 4
+SAH
+L
+√
+H+0.5
+≤24
+√
+κSAH2.5(L + 1)1.5 log2
+16
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+q
+L+0.5
+4SA
+√
+H ∨1
+
+q
+nk
+h(s, a) ∨1
+,
+34
+
+
+--- PAGE 35 ---
+we get
+Reg(K) ≤2
+K
+X
+k=1
+H
+X
+h=1
+E
+
+
+s
+2 log 8SAHK
+δ
+nk
+h(sk, ak) ∨1 + H
+s
+4S log 12SAHK
+δ
+nk
+h(sk, ak) ∨1
+
+Fk−1
+
+
++ 4H2
+K
+X
+k=1
+H
+X
+h=1
+E
+
+24
+√
+κSAH2.5(L + 1)1.5 log2
+16
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+q
+L+0.5
+4SA
+√
+H ∨1
+
+p
+nk
+h(s, a) ∨1
+
+Fk−1
+
+
+≤
+
+16H2 log
+4
+δ
+
++ 4SAH2 + 2
+√
+2
+p
+SAH2K log HK
+
+×
+ 
+2
+r
+2 log 8SAHK
+δ
++ 2H
+r
+4S log 12SAHK
+δ
++92H2√
+κSAH2.5(L + 1)1.5 log2
+16
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+ s
+L + 0.5
+4SA
+√
+H
+∨1
+!!
+= O
+ s
+κS2A2H8.5L3K log3
+SAHK
+δ
+!
+,
+where the last inequality is by Lemma 9.
+35
+
+
+--- PAGE 36 ---
+J
+Cost Concentration
+In the section to follow, we provide a local concentration bound for estimating the costs in the
+termination model. This local concentration result will allow us to use the cost bonus defined in
+Appendix H, which is crucial for achieving tight regret guarantees, when the costs are unknown.
+Specifically, this concentration result serves as the base for dealing with the cost optimism in Lemma 3
+and cost concentration in Theorem 2.
+We first start by describing the optimization procedure used for learning the costs (Appendix J.1).
+Then, by formulating this procedure as an instance of the logistic bandits problem, we obtain a
+concentration result for the cost, which globally bounds the distance between the empirical and cost
+vectors (Appendix J.2). Finally, we use this global concentration result together with the structure of
+the termination MDP to provide a local concentration bound for the costs which holds independently
+for any h, s, a (Appendix J.3).
+Before diving into the details, we first present additional notations required to the analysis in this
+appendix. First, to address time steps after termination, we define ˆdk
+h(t, s, a) = 0 for any t > t∗
+k and
+∀t, s, a. This allows to add these vectors to the regression problem without affecting its solution.
+Moreover, we denote the episode-wise Gram matrix by Ak ≜Pt∗
+h=1 ˆdk
+h ˆdk
+h
+T and the regularized
+Gram matrix up to episode k by Vk ≜λI + Pk−1
+k′=1 Ak′, for some λ > 0.
+J.1
+Optimization Procedure
+In a vanilla MDP, at each time step, the agent takes an action and transitions to the next state. Instead,
+in the termination model considered in this paper, the agent potentially gets a termination signal from
+the environment. Importantly, the agent can gain information about the termination probabilities even
+in time steps when no termination occurs. Formally, at any time step up to the time of termination
+h ∈[H −1] (the last time step always ends in termination), the agent acquires a sample from a
+Bernoulli random variable, where 1 means termination (h = t∗
+k), and 0 otherwise (h ̸= t∗
+k). Since the
+termination probability is a logistic function of the occupancy vector, finding the termination costs
+can be done using a logistic regression. This leads us to solve the following optimization problem in
+Algorithm 1 (Line 10),
+ˆck+1 ∈arg max
+c∈C
+K
+X
+k=1
+H−1
+X
+h=1
+h
+1{h < t∗
+k} log
+
+1 −ρ
+ 
+ ˆdk
+h, c
+
++ 1{h = t∗
+k} log
+
+ρ
+
+ ˆdk
+h, c
+i
+−λ ∥c∥2
+2 ,
+(3)
+where C is the set of possible costs. Specifically, by the fact we only observe termination on the
+trajectories we played, the feedback in this problem is bandit feedback. In the next section, we use
+known results for the logistic bandit problem Abeille et al. [2021], and apply them to acquire a global
+concentration bound for the costs learned in this procedure.
+J.2
+Global Cost Concentration
+We start by stating concentration results for logistic bandits. Let xt ∈X ⊂Rd be a sequence of
+contexts s.t. ∥x∥≤1 for all x ∈X and assume that yt are Bernoulli random variable such that
+E[yt|xt] = ρ(xT
+t θ∗), for some θ∗∈Θ. Next, define the regularized logistic loss w.r.t. λ > 0
+by Lt(θ) = −Pt−1
+s=1
+ ys log ρ(xT
+s θ) + (1 −ys) log(1 −ρ(xT
+s θ))
+
++ λ ∥θ∥2
+2. We denote the uncon-
+strained minimizer of the loss by ¯θt and its minimizer over Θ by ˆθt. Finally, with slight abuse of
+notation, let Ht(θ) = Pt−1
+s=1 ˙µ(xT
+s θ)xsxT
+s + λI.
+We now focus on the confidence set Etδ), defined in [Abeille et al., 2021] as
+Et(δ) =
+
+θ ∈Θ|Lt(θ) −Lt(¯θt) ≤βt(δ)2	
+for some appropriate βt(δ) > 0. By Proposition 1 and Lemma 1 of [Abeille et al., 2021], it holds
+that θ∗∈Et(δ). Thus, under this event, the set is not empty. In particular, when the set is not empty,
+it must also contains ˆθt, as the constrained minimizer of the cost. Combining this conclusion with
+Lemma 1 of [Abeille et al., 2021], we obtain the following lemma.
+36
+
+
+--- PAGE 37 ---
+Lemma 4 (Logistic Regression Concentration). With probability of at least 1 −δ, for all t ≥1,
+ˆθt −θ∗
+
+Ht(θ∗) ≤(2 + 2L)γt(δ) + 2
+√
+1 + L
+
+γt(δ) + γt(δ)2
+√
+λ
+
+,
+(4)
+where L = maxθ∈Θ ∥θ∥2 and γt(δ) =
+√
+λ
+ L + 1
+2
+
++
+d
+√
+λ log
+  4
+δ
+ 1 +
+t
+16dλ
+
+.
+This result can be applied to our algorithm as follows:
+Corollary 1 (Global Cost Bound). Let λ =
+d
+L
+√
+H+0.5, X =
+
+x ∈RSAH : xi ∈{0, 1}, P
+i xi ≤H
+	
+and κ =
+ minx∈X ˙µ(xT c)
+−1. With probability of at least 1 −δ, it holds that
+ˆck −c
+
+Vk ≤12
+√
+κSAH2.5(L + 1)1.5 log2
+4
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+.
+Proof. We apply Lemma 4 with xH(k−1)+h = ˆdk
+h if h ≤min(t∗
+k, H −1) and xH(k−1)+h = 0
+otherwise, where k > 0 is the episode and h ∈[H] is the step within the episode. Notice that
+zero contexts xH(k−1)+h = 0 do not affect the regression solution, so steps after termination
+are ignored. Also, in our case, we have ∥x∥2 ≤H, instead of ∥x∥≤1, so to compensate it,
+the parameter L will be scaled by
+√
+H. Under our assumptions, we have d = SAH, and thus
+γk(δ) ≤2
+q
+SAH(L
+√
+H + 0.5) log
+
+4
+δ
+
+1 + k(L
+√
+H+0.5)
+16S2A2H
+
+and
+ˆck −c
+
+Ht(c) ≤(2 + 2L
+√
+H)γt(δ) + 2
+q
+1 + L
+√
+H
+
+γt(δ) + γt(δ)2
+√
+λ
+
+≤4(1 + L
+√
+H)γt(δ) +
+p
+1 + L
+√
+H
+√
+λ
+γt(δ)2
+≤12
+√
+SAH(L
+√
+H + 1)1.5 log2
+ 
+4
+δ
+ 
+1 + k(L
+√
+H + 0.5)
+16S2A2H
+!!
+≤12
+√
+SAH2.5(L + 1)1.5 log2
+4
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+We conclude the proof by using the fact that κHk(c) ⪰Vt (Lemma 5) for θ∗= c.
+Lemma 5 (Connection between Local and Global Design Matrices). For any θ, if κX (θ) =
+1
+minx∈X ˙µ(xT θ), then it holds that
+κX (θ)Ht(θ) ⪰Vt .
+Proof. For any θ,
+Ht(θ) =
+t−1
+X
+s=1
+˙µ(xT
+s θ)xsxT
+s + λtI
+⪰min
+x∈X ˙µ(xT
+s θ)
+t−1
+X
+s=1
+xsxT
+s + λtI
+=
+1
+κX (θ)
+t−1
+X
+s=1
+xsxT
+s + λtI
+1<κX (θ)
+⪰
+1
+κX (θ)
+ t−1
+X
+s=1
+xsxT
+s + λtI
+!
+=
+1
+κX (θ)Vt .
+37
+
+
+--- PAGE 38 ---
+s0
+s1
+sT
+a1
+a2
+Figure 7: Example for the necessity of step-wise feedback for local estimation. Plot depicts a deterministic
+MDP which always begins at state s0. Assume that we only receive a binary signal of whether there was
+termination at the end of the episode, but do not observe it during the episode. If we only observe the trajectory
+s0 →s1 →sT , identifying the state in which the termination occurred is not possible, until we further observe
+the trajectory s0 →sT . That is, there is no way to know whether termination occurred due to state s0 or s1. In
+contrast, in the TerMDP model we view termination signals at every iteration, allowing us to identify the costs
+locally w.r.t. every state and action.
+J.3
+From Global to Local Cost Concentration
+In our setting, the global cost concentration also implies a component-wise (local) concentration of
+the costs. This is in stark contrast to standard regression results, where specific coordinates cannot
+always be recovered. To see the intuition behind it, assume for simplicity that we observe the exact
+termination probability (rather than just a random termination signal). Notably, on each time step
+up to the termination, we could directly reconstruct the partial sums Ph
+t=1 ct(sk
+t , ak
+t ) by inverting
+the logistic function. Then, the costs of all visited states could be directly calculated through the
+difference between the cumulative costs of any two consecutive steps. Notice that we can calculate
+this difference only since we get feedback on every time step up to termination. Were we only to
+observe feedback on the cumulative costs at the termination time, then we would not be able to
+guarantee to reconstruct anything but the global cumulative costs we were given (see example in
+Figure 7). In this case, the global (vector-wise) concentration used in logistic bandits (see Corollary 1
+in Appendix J.2) cannot not be improved.
+Lemma 6 (Local Cost Estimation Confidence Bound). For any δ > 0, with probability of at least
+1 −δ, for any episode k ∈[K], it holds that for all h ∈[H −1], s ∈S, a ∈A,
+ˆck
+h(s, a) −ch(s, a)
+ ≤24
+√
+κSAH2.5(L + 1)1.5 log
+4
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+1
+q
+nk
+h(s, a) + 4
+SAH
+L
+√
+H+0.5
+.
+Proof. For any k ∈[K], h ∈[H −1], s ∈S and h ∈S, we can bound
+ck
+h(s, a) −ch(s, a)
+ = |⟨eh,s,a, ˆck −c⟩| ≤∥eh,s,a∥V −1
+k
+∥ˆck −c∥Vk ,
+(5)
+where eh,s,a ∈RHSA is a unit vector in the (h, s, a) coordinate, and the inequality is due to
+Cauchy-Schwartz. We now turn to bound ∥eh,s,a∥V −1
+k .
+V −1
+k
+⪯
+ 
+λI +
+k−1
+X
+k′=1
+Ak′1
+n
+(h, s, a) ∈τ k′o!−1
+=
+ k−1
+X
+k′=1
+ 
+λ
+nk−1
+h
+(s, a)
+I + Ak′
+!
+1
+n
+(h, s, a) ∈τ k′o!−1
+⪯
+1
+ nk−1
+h
+(s, a)
+2
+k−1
+X
+k′=1
+ 
+λ
+nk−1
+h
+(s, a)
+I + Ak′
+!−1
+1
+n
+(h, s, a) ∈τ k′o
+,
+where nk−1
+h
+(s, a) = Pk−1
+k′=1 1
+n
+(h, s, a) ∈τ k′o
+and the third transition is due to HM-AM inequality
+for positive matrices Bhagwat and Subramanian [1978].
+38
+
+
+--- PAGE 39 ---
+Using this relation, we can bound ∥eh,s,a∥2
+V −1
+k
+by bounding the maximal eigenvalue of each of the
+summands. We do so in Lemma 7, and obtain the following bound:
+∥eh,s,a∥2
+V −1
+k
+= eT
+h,s,aV −1
+k
+eh,s,a
+≤
+1
+ nk−1
+h
+(s, a)
+2
+k−1
+X
+k′=1
+eT
+h,s,a
+ 
+λ
+nk−1
+h
+(s, a)
+I + Ak′
+!−1
+1
+n
+(h, s, a) ∈τ k′o
+eh,s,a
+≤
+1
+ nk−1
+h
+(s, a)
+2
+k−1
+X
+k′=1
+1
+1
+4 +
+λ
+nk−1
+h
+(s,a)
+1
+n
+(h, s, a) ∈τ k′o
+(Lemma 7)
+=
+nk−1
+h
+(s, a)
+ nk−1
+h
+(s, a)
+2
+1
+1
+4 +
+λ
+nk−1
+h
+(s,a)
+=
+4
+nk−1
+h
+(s, a) + 4λ
+.
+By plugging into eq. (5), we obtain that for any k and any h, s, a
+ck
+h(s, a) −ch(s, a)
+ ≤∥ˆck −c∥Vk ∥eh,s,a∥V −1
+k
+≤∥ˆck −c∥Vk
+s
+4
+nk−1
+h
+(s, a) + 4λ
+.
+Finally, by Corollary 1 with d = SAH, with probability of at least 1 −δ it holds that
+ck
+h(s, a) −ch(s, a)
+24
+√
+κSAH2.5(L + 1)1.5 log
+4
+δ
+
+1 + k(L + 0.5)
+16S2A2√
+H
+
+1
+q
+nk
+h(s, a) + 4
+SAH
+L
+√
+H+0.5
+,
+which concludes the proof.
+Lemma 7 (Inverse Eigenvalues Bound). If (h, s, a) ∈τ k and eh,s,a ∈RHSA is a unit vector in the
+coordinate (h, s, a), then eT
+h,s,a(λI + Ak)−1eh,s,a ≤
+1
+1
+4 +λ .
+Proof. Throughout the proof, we assume for brevity that there was termination in all episodes,
+i.e., t∗
+k ≤H −1 for all k ∈[K]. Otherwise, the exact same proof follows by replacing t∗
+k
+by min{t∗
+k, H −1} (namely, treating the lack of termination feedback at the last timestep of the
+episodes). With some abuse of notations, we also use ei ∈RHSA to denote the unit vector in the i-th
+coordinate.
+To simplify the proof, it would be helpful to assume that the t-th coordinate of the empirical occupancy
+vector represents the state that was visited on the t-th time step (namely, coordinates are sorted by
+their visitation order). States that were not visited can be arbitrarily ordered. Formally, this can be
+done using any permutation matrix Pk such that et,sk
+t ,ak
+t = Pket for all t ∈[t∗
+k] (and other coordinates
+can be arbitrarily permuted). In particular, denoting ¯et = Pt
+i=1 ei =
+ 1, . . . , 1
+| {z }
+t−times
+, 0, . . . , 0
+T , we can
+write ˆdk
+t = Pt
+i=1 ei,sk
+i ,ak
+i = Pt
+i=1 Pkei = Pk¯et.
+39
+
+
+--- PAGE 40 ---
+Then, we have that
+eT
+h,s,a(λI + Ak)−1eh,s,a = eT
+h,s,a
+
+λI +
+t∗
+k
+X
+t=1
+ˆdk
+t ˆdk
+t
+T
+
+
+−1
+eh,s,a
+= eT
+h,s,a
+
+λI +
+t∗
+k
+X
+t=1
+Pk¯et¯eT
+t P T
+k
+
+
+−1
+eh,s,a
+= eT
+h,s,a
+
+Pk
+
+λI +
+t∗
+k
+X
+t=1
+¯et¯eT
+t
+
+P T
+k
+
+
+−1
+eh,s,a
+= eT
+h,s,aPk
+
+λI +
+t∗
+k
+X
+t=1
+¯et¯eT
+t
+
+
+−1
+P T
+k eh,s,a ,
+where the two last relations is since permutation matrices are orthogonal, namely P −1
+k
+= P T
+k .
+Now, notice that Pk permutes the first t∗
+k components to the visited (t, sk
+t , ak
+t ) tuples. Thus, its inverse
+P T
+k permutes visited tuples (t, sk
+t , ak
+t ) to the t-th coordinate, namely P T
+k et,sk
+t ,ak
+t = et and
+eT
+h,s,a(λI + Ak)−1eh,s,a = eT
+h
+
+λI +
+t∗
+k
+X
+t=1
+¯et¯eT
+t
+
+
+−1
+eh .
+Moreover, λI + Pt∗
+k
+t=1 ¯et¯eT
+t is a block-diagonal matrix whose first block is located at its first t∗
+k
+coordinates. Thus, each block can be inverted independently, and as eh is located in the first block
+of the matrix, w.l.o.g. we can only focus on the t∗
+k × t∗
+k first-block of the matrix. We denote
+this block by B ∈Rt∗
+k×t∗
+k, and if uh ∈Rt∗
+k is a unit vector in the hth coordinate, we can write
+eT
+h
+
+λI + Pt∗
+k
+t=1 ¯et¯eT
+t
+−1
+eh = uT
+h (λI + B)−1uh.
+Directly calculating of the sum Pt∗
+k
+t=1 ¯et¯eT
+t , one can easily see that B(i, j) = t∗
+k + 1 −max{i, j}, as
+we now illustrate:
+
+
+
+
+
+
+t∗
+k
+t∗
+k −1
+t∗
+k −2
+. . .
+1
+t∗
+k −1
+t∗
+k −1
+t∗
+k −2
+. . .
+1
+t∗
+k −2
+t∗
+k −2
+t∗
+k −2
+. . .
+1
+...
+...
+...
+...
+...
+1
+1
+1
+1
+1
+
+
+
+
+
+
+This matrix can be easily diagonalized, which can be used to calculate its inverse:
+
+
+
+
+
+
+t∗
+k
+t∗
+k −1
+t∗
+k −2
+. . .
+1
+1
+0
+0
+. . .
+0
+t∗
+k −1
+t∗
+k −1
+t∗
+k −2
+. . .
+1
+0
+1
+0
+. . .
+0
+t∗
+k −2
+t∗
+k −2
+t∗
+k −2
+. . .
+1
+0
+0
+1
+. . .
+0
+...
+...
+...
+...
+...
+...
+...
+...
+...
+...
+1
+1
+1
+1
+1
+0
+0
+0
+. . .
+1
+
+
+
+
+
+
+=
+
+
+
+
+
+
+1
+0
+0
+. . .
+0
+1
+−1
+0
+. . .
+0
+1
+1
+0
+. . .
+0
+0
+1
+−1
+. . .
+0
+1
+1
+1
+. . .
+0
+0
+0
+1
+. . .
+0
+...
+...
+...
+...
+...
+...
+...
+...
+...
+...
+1
+1
+1
+1
+1
+0
+0
+0
+. . .
+1
+
+
+
+
+
+
+=
+
+
+
+
+
+
+1
+0
+0
+. . .
+0
+1
+−1
+0
+. . .
+0
+0
+1
+0
+. . .
+0
+−1
+2
+−1
+. . .
+0
+0
+0
+1
+. . .
+0
+0
+−1
+2
+. . .
+0
+...
+...
+...
+...
+...
+...
+...
+...
+...
+...
+0
+0
+0
+0
+1
+0
+0
+0
+. . .
+2
+
+
+
+
+
+
+40
+
+
+--- PAGE 41 ---
+In the first step, we subtracted rows i + 1 from the i rows, and in the second step, we subtracted the
+i −1 rows from the i rows. Thus, the inverse can be explicitly written as follows:
+B−1
+i,j =
+
+
+
+
+
+1
+i = j = 1
+2
+i = j > 1
+−1
+i = j −1 or i = j + 1
+0
+o.w.
+Notice that the absolute values of all rows is smaller than 4. Then (e.g., by Gershgorin circle theorem),
+λmax(B−1) ≤4, and since B is PSD, λmin(B) ≥1
+4. Finally, we get the desired result by bounding
+eT
+h,s,a(λI + Ak)−1eh,s,a = uT
+h (λI + B)−1uh
+≤∥uh∥2
+| {z }
+=1
+λmax
+
+(λI + B)−1
+=
+1
+λmin(λI + B) ≤
+1
+1
+4 + λ .
+Remark. Notice that the same conclusion still holds in the extreme case of t∗≤2: we get
+λmax(B−1) ≤3 for t∗= 2 and λmax(B−1) = 1 (as B contains a single element).
+41
+
+
+--- PAGE 42 ---
+K
+Useful Lemmas
+Lemma 8 (Value difference lemma, e.g., Dann et al. [2017], Lemma E.15). Consider two MDPs
+M = (S, A, P, r, H) and M′ = (S, A, P ′, r′, H). For any policy π and any s, h, the following
+relation holds:
+V π
+h (s; M) −V π
+h (s; M′)
+= E
+" H
+X
+h′=h
+(rh′(sh′, ah′) −r′
+h′(sh′, ah′)) + (P −P ′)(· | sh′, ah′)T V π
+h′+1(·; M′)|sh = s, π, P
+#
+The following lemma is due to Efroni et al. [2020b], with the only exception that the original lemma
+assumes a stationary MDP and therefore, S translates to SH in the following.
+Lemma 9 (Expected Cumulative Visitation Bound, Lemma 22, Efroni et al. [2020b]). Let {Fk}K
+k=1
+be the natural filtration. Then, with probability greater than 1 −δ it holds that
+K
+X
+k=1
+E
+
+
+H
+X
+h=1
+1
+q
+nk
+h(sk
+h, ak
+h) ∨1
+| Fk−1
+
+≤16H2 log
+1
+δ
+
++ 4SAH2 + 2
+√
+2
+p
+SAH2K log HK
+= O
+
+H
+
+HSA + H log
+1
+δ
+
++
+p
+SAH2K log HK
+
+= ˜O
+√
+H2SAK
+
+42

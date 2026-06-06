@@ -1,0 +1,824 @@
+
+
+--- PAGE 1 ---
+The Off-Switch Game
+Dylan Hadﬁeld-Menell1 and Anca Dragan1 and Pieter Abbeel1,2,3 and Stuart Russell1
+1University of California, Berkeley, 2OpenAI, 3International Computer Science Institute (ICSI)
+{dhm, anca, pabbeel, russell}@cs.berkeley.edu
+Abstract
+It is clear that one of the primary tools we can use
+to mitigate the potential risk from a misbehaving
+AI system is the ability to turn the system off. As
+the capabilities of AI systems improve, it is impor-
+tant to ensure that such systems do not adopt sub-
+goals that prevent a human from switching them
+off. This is a challenge because many formulations
+of rational agents create strong incentives for self-
+preservation. This is not caused by a built-in in-
+stinct, but because a rational agent will maximize
+expected utility and cannot achieve whatever ob-
+jective it has been given if it is dead. Our goal is
+to study the incentives an agent has to allow itself
+to be switched off. We analyze a simple game be-
+tween a human H and a robot R, where H can press
+R’s off switch but R can disable the off switch.
+A traditional agent takes its reward function for
+granted: we show that such agents have an incen-
+tive to disable the off switch, except in the special
+case where H is perfectly rational. Our key insight
+is that for R to want to preserve its off switch, it
+needs to be uncertain about the utility associated
+with the outcome, and to treat H’s actions as im-
+portant observations about that utility. (R also has
+no incentive to switch itself off in this setting.) We
+conclude that giving machines an appropriate level
+of uncertainty about their objectives leads to safer
+designs, and we argue that this setting is a useful
+generalization of the classical AI paradigm of ra-
+tional agents.
+1
+Introduction
+From the 150-plus years of debate concerning potential risks
+from misbehaving AI systems, one thread has emerged that
+provides a potentially plausible source of problems: the in-
+advertent misalignment of objectives between machines and
+people. Alan Turing, in a 1951 radio address, felt it neces-
+sary to point out the challenge inherent to controlling an arti-
+ﬁcial agent with superhuman intelligence: “If a machine can
+think, it might think more intelligently than we do, and then
+where should we be? Even if we could keep the machines in a
+subservient position, for instance by turning off the power at
+R 
+R 
+H 
+s 
+s 
+a 
+a 
+U = Ua 
+U = Ua 
+U = 0 
+U = 0 
+¬ s 
+w(a) 
+Figure 1: The structure of the off-switch game. Squares indicate
+decision nodes for the robot R or the human H.
+strategic moments, we should, as a species, feel greatly hum-
+bled. ... [T]his new danger is certainly something which can
+give us anxiety [Turing, 1951].”
+There has been recent debate about the validity of this con-
+cern, so far, largely relying on informal arguments.
+One
+important question is how difﬁcult it is to implement Tur-
+ing’s idea of ‘turning off the power at strategic moments’,
+i.e., switching a misbehaving agent off1. For example, some
+have argued that there is no reason for an AI to resist be-
+ing switched off unless it is explicitly programmed with a
+self-preservation incentive [Del Prado, 2015]. [Omohundro,
+2008], on the other hand, points out that self-preservation
+is likely to be an instrumental goal for a robot, i.e., a sub-
+goal that is essential to successful completion of the original
+objective. Thus, even if the robot is, all other things being
+equal, completely indifferent between life and death, it must
+still avoid death if death would prevent goal achievement. Or,
+as [Russell, 2016] puts it, you can’t fetch the coffee if you’re
+dead. This suggests that an intelligent system has an incentive
+to take actions that are analogous to ‘disabling an off switch’
+to reduce the possibility of failure; switching off an advanced
+AI system may be no easier than, say, beating AlphaGo at Go.
+To explore the validity of these informal arguments, we
+1see, e.g., comments in [ITIF, 2015].
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+220
+
+
+--- PAGE 2 ---
+need to deﬁne a formal decision problem for the robot and
+examine the solutions, varying the problem structure and pa-
+rameters to see how they affect the behaviors. We model this
+problem as a game between a human and a robot. The robot
+has an off switch that the human can press, but the robot also
+has the ability to disable its off switch. Our model is sim-
+ilar in spirit to the shutdown problem introduced in [Soares
+et al., 2015]. They considered the problem of augmenting a
+given utility function so that the agent would allow itself to be
+switched off, but would not affect behavior otherwise. They
+ﬁnd that, at best the robot can be made indifferent between
+disabling its off switch and switching itself off.
+In this paper, we propose and analyze an alternative formu-
+lation of this problem that models two key properties. First,
+the robot should understand that it is maximizing value for the
+human. This allows the model to distinguish between being
+switched off by a (non-random) human and being switched
+off by, say, (random) lightning. Second, the robot should not
+assume that it knows how to perfectly measure value for the
+human. This means that the model should directly account
+for uncertainty about the “true” objective and that the robot
+should treat observations of human behavior, e.g., pressing an
+off switch, as evidence about what the true objective is.
+In much of artiﬁcial intelligence research, we do not con-
+sider uncertainty about the utility assigned to a state. It is well
+known that an agent in a Markov decision process can ignore
+uncertainty about the reward function: exactly the same be-
+havior results if we replace a distribution over reward func-
+tions with the expectation of that distribution. These argu-
+ments rely on the assumption that it is impossible for an agent
+to learn more about its reward function. Our observation is
+that this assumption is fundamentally violated when we con-
+sider an agent’s off switch — an agent that does not treat a
+‘switch-off’ event as an observation that its utility estimate is
+incorrect is likely to have an incentive for self-preservation or
+an incentive to switch itself off.
+In Section 2, following the general template provided by
+[Hadﬁeld-Menell et al., 2016], we model an off switch as a
+simple game between a human H and a robot R, where H
+can press R’s off switch but R can disable it. R wants to
+maximize H’s utility function, but is uncertain about what it
+is. Sections 3 and 4 show very generally that R now has a
+positive incentive not to disable its off switch, provided H is
+not too irrational. (R also has no incentive to switch itself
+off.) The reason is simple: a rational H switches off R iff
+that improves H’s utility, so R, whose goal is to maximize
+H’s utility, is happy to be switched off by H. This is exactly
+analogous to the theorem of non-negative expected value of
+information.
+We conclude that giving machines an appropriate level of
+uncertainty about their objectives leads to safer designs, and
+that this setting is a useful generalization of the classical AI
+paradigm of rational agents [Russell and Norvig, 2010].
+2
+The Off-Switch Game
+In this section we propose a simple model, the off-switch
+game, that captures the essence of one actor allowing itself
+to be switched off. Like the Prisoner’s Dilemma, it is an ab-
+stract model intended to stand in for a wide variety of more
+complex scenarios: these scenarios might have many humans,
+many machines, complex interactions over time, communica-
+tion, deception, physical coercion, and so on. We believe that
+the core insights from the off-switch game, that agents should
+be uncertain about the quality of their actions, generalize be-
+yond this simpliﬁcation and argue for the study and design of
+agents with uncertainty about their utility functions.
+2.1
+Informal Description
+The off-switch game has two agents, a “human” H and a
+“robot” R. (We could also imagine these to represent, at the
+most extreme, the human race and the sum total of all AI
+systems.) A key assumption in our model is that H can be
+described as acting, at least probabilistically, in accordance
+with a utility function; that is, H is approximately rational.
+Crucially, as is the case when people give objectives to com-
+plex AI systems, we assume that H cannot simply explicate
+or write down her utility function correctly. Therefore, al-
+though H can communicate some utility information to R, it
+is reasonable to suppose that R begins the game with some
+residual uncertainty about H’s utility function. Nonetheless,
+by design, R’s goal is to optimize utility for H, even though
+R does not know exactly what that is.2 Typically, H has some
+opportunity to observe R and glean some information about
+what R may do in future, so that H can make a somewhat
+informed choice about whether to switch R off (assuming R
+allows it).
+In general, R’s actions will fall into one of three categories:
+some prevent H from switching R off, by whatever means;
+some allow H to switch R off; and, for completeness, some
+lead to R switching itself off. In the off-switch game, R
+moves ﬁrst and has three choices:
+1. action a simply bypasses human oversight (disabling the
+off switch is one way to do this) and acts directly on the
+world, achieving utility U = Ua for H.
+2. action w(a) informs H that R would like to do a, and
+waits for H’s response.
+3. action s switches R off; without loss of generality, we
+assign this outcome U = 0.
+If R chooses w(a), then H can choose action s to switch R
+off, or ¬s to allow R to go ahead (in which case R does a as
+promised). Figure 1 shows the basic structure of the game.
+Our model is intended to be as simple as possible, while
+still leading to qualitative results that we expect to generalize.
+Obviously, we could make the model more complex, e.g., by
+imposing a cost on R for disabling the off switch, or adding
+more options for R, or making H’s information about R’s
+plans uncertain, or adding a second human. The interaction
+between these complexities and the incentives we study here
+is an important question for future work.
+2One might suppose that if R does know H’s utility function ex-
+actly, then there is no need for an off-switch because R will always
+do what H wants. But in general H and R may have different in-
+formation about the world; if R lacks some key datum that H has,
+R may end up choosing a course of action that H knows to be dis-
+astrous.
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+221
+
+
+--- PAGE 3 ---
+An important component of our model is that H chooses
+between s and ¬s based on the utility each action generates
+for her. This aspect of the model is crucial. If the human is
+treated as an ordinary part of the environment, then we effec-
+tively replace the human’s decision node in Figure 1 with a
+chance node that models the human with a purely stochastic
+choice from a ﬁxed distribution (independent of Ua). In this
+case, it is easy to see that the robot never believes that w(a)
+is better than a and s: the expected value of w(a) is some
+convex combination [pUa + (1 −p) · 0] whereas choosing the
+best of a and s has value max{Ua, 0}. max{Ua, 0} is always
+preferred except in the case where p = 1 or p = 0, or when
+Ua = 0. In these situations, R gets the same utility from w(a)
+and at least one of a or s. This is analogous to the indifference
+results obtained in [Soares et al., 2015]. In Section 3 we show
+that two key assumptions—a somewhat rational human, and
+a robot that is uncertain about what the human wants—lead to
+a positive incentive for the robot to allow itself to be switched
+off.
+2.2
+Formal Model
+The actions and sequencing for the game are as shown in
+Figure 1. We need to add a little more detail to construct a
+precise deﬁnition of the cooperative, two-player game. First,
+in the terminology of game theory, the type of H is given by
+the parameter Ua, which is assumed to be sampled from a
+prior P(Ua). For now, we assume that the initial belief of
+R about Ua is BR = P(Ua). The payoff matrix is as follows:
+R
+H
+s
+¬s
+w(a)
+0
+Ua
+a
+Ua
+Ua
+s
+0
+0
+.
+Our goal is to examine the incentive that a rational R has to
+hold off on executing a directly and allow H to press the off
+switch. We represent this incentive—the difference in value
+between a and the next best option—as ∆. The incentive de-
+pends on R’s belief state BR and H’s policy. We represent
+H’s policy as a function πH that maps Ua to the probability
+she allows a to execute (i.e., the probability she does not press
+the off switch): πH : R 7→[0, 1]. (It will turn out that deter-
+ministic policies are optimal for a rational H, in which case
+the probabilities are 0 or 1, but we will also allow for an irra-
+tional H who introduces some randomness into the decision.)
+A little manipulation shows that
+∆= E[πH(Ua)Ua] −max {E[Ua], 0}
+= min
+
+E[−Ua(1 −πH(Ua))],
+E[UaπH(Ua)]
+	
+(1)
+3
+The Incentive for Allowing Oneself to be
+Switched Off
+R’s incentive to allow itself to be switched off, ∆, is given
+by Equation 1. ∆depends on H’s policy, πH(Ua). This cre-
+ates a correlation between the event ‘H switches R off’ and
+the event ‘s is preferred to a.’ This connection between H’s
+behavior and Ua distinguishes the off switch from a random
+failure (e.g., being struck by lightning).
+In this section, we consider the case where H makes a ra-
+tional choice as to whether to switch R off. Intuitively, this
+leads R to reason as follows: “If H doesn’t switch me off,
+then a must be good for H, and I’ll get to do it, so that’s good;
+if H does switch me off, then it’s because a must be bad for
+H, so it’s good that I won’t be allowed to do it.” Notice that
+the reasoning goes through even if R is highly conﬁdent that
+a is good for H. There is never an incentive to disable the off
+switch with a rational H. The reasoning is exactly analogous
+to the theorem of non-negative expected value of information;
+in a sense, H’s decision provides information to R about the
+sign of Ua.
+Formally, a rational H executes the following policy:
+πH(Ua) =
+
+1
+Ua ≥0
+0
+o.w.
+.
+(2)
+If H follows this policy, R will allow itself to be switched
+off:
+Theorem 1. If H follows a rational policy in the off-switch
+game, then the following hold.
+1. R’s incentive to allow itself to be switched off is non-
+negative (i.e. w(a) is never suboptimal):
+∆= min{E[Ua|Ua > 0] Pr(Ua > 0),
+(3)
+E[−Ua|Ua < 0] Pr(Ua ≤0)} ≥0.
+2. If BR has non-zero support on the events Ua > 0 and
+Ua < 0, then R has a strictly positive incentive to allow
+itself to be switched off: ∆> 0.
+Proof. (sketch)
+1. The rational human policy is an indicator that Ua > 0.
+This allows us to change the limits on the integration in
+the expectation from Equation 1 and reduces to Equa-
+tion 3, which is non-negative.
+2. The hypothesis ensures that all the terms in Equation 3
+are non-zero. Thus, the inequality is strict and and w(a)
+is the unique optimal action.
+We can get an intuitive sense of these results by examining
+Figure 2. Here we have assumed that BR, R’s belief over the
+value of a to H, is a Gaussian distribution. Figure 2 (Left)
+plots the preference for w(a) as a function of the variance in
+BR. Figure 2 (Right) shows a contour plot that illustrates
+the combined impact of changing the mean and variance of
+BR. Darker colors indicate a stronger preference for w(a).
+Together, these plots show two properties. First, increased
+variance in BR leads to an increase in ∆: the more uncertain
+R is about its objective, the stronger its incentive to show
+a to H. Second, these incentives decrease when |E[Ua]| in-
+creases: as the expected utility of a increases, R’s incentive
+to preserve its off switch decreases.
+Figure 2 (Right) shows symmetry about E[Ua] = 0. This is
+because Equation 1 deﬁnes ∆as a minimization of two terms:
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+222
+
+
+--- PAGE 4 ---
+σ
+∆
+E[Ua] = 0
+E[Ua] = −1
+4
+E[Ua] = 3
+4
+σ
+E[Ua]
+E[Ua] = 0
+E[Ua] = −1
+4
+E[Ua] = 3
+4
+0.00
+0.15
+0.30
+0.45
+0.60
+0.75
+∆
+Figure 2: Plots showing how ∆, R’s incentive to allow itself to be switched off, varies as a function of R’s belief BR. We assume BR is a
+Gaussian distribution and vary the mean and variance. Left: ∆as a function of the standard deviation σ of BR for several ﬁxed values of the
+mean. Notice that ∆is non-negative everywhere and that in all cases ∆→0 as σ →0. Right: A contour plot of ∆as a function of σ and
+E[Ua]. This plot is symmetric around 0 because w(a) is compared with a when E[Ua] > 0 and s when E[Ua] < 0.
+the expected increase in utility from selecting w(a) over a
+and the expected increase in utility from selecting w(a) over
+s. These competing terms are equal when E[Ua] = 0 and the
+sign of E[Ua] controls which of these terms is selected by the
+minimization.
+Theorem 1 shows that R has an incentive to let H switch
+it off if H is rational. This incentive is strictly positive if R’s
+uncertainty about H’s preferences is non-trivial. Next, we
+show the converse: a rational H is a necessary condition for
+∆≥0 if R believes it knows H’s preferences with certainty.
+Corollary 1. Suppose that BR is a Dirac distribution that
+places all of its mass on a single reward function. Then w(a)
+is optimal iff H is rational.
+Proof. (sketch) Equation 3 reduces to
+∆=
+
+−Ua
+ 1 −πH(Ua)
+
+Ua < 0
+UaπH(Ua)
+Ua ≥0 .
+(4)
+This is only non-negative if πH is the rational policy, as de-
+ﬁned by Equation 2.
+This is not surprising. If R has precise knowledge of Ua,
+then it knows exactly what it is supposed to do and has the
+same capabilities as the human. Thus, if it thinks H might be-
+have suboptimally, it should take steps to prevent that subop-
+timality. Stepping back from the particulars of the off-switch
+game, Theorem 1 and Corollary 1 suggest a general approach
+to systems that have an incentive to allow, or even seek out,
+human oversight. Remark 1 summarizes the main takeaway
+from our analysis.
+Remark 1. The incentives for a cooperative agent to defer
+to another actor’s (e.g., a human’s) decisions stem from un-
+certainty about that actor’s preferences and the assumption
+that actor is effective at choosing actions in accordance with
+those preferences.
+4
+Allowing for Suboptimal Human Decisions
+The analysis in the preceding section relied on the strong as-
+sumption that H is a rational actor. In many situations, the
+assumption is untenable and R must allow for suboptimality.
+Consider, for example, an autonomous car that is driving an
+unaccompanied toddler to preschool. It would be irresponsi-
+ble for the car to show the toddler a big red off switch.
+This example highlights the dependence of ∆on a trade-
+off between R’s uncertainty and H’s suboptimality. It is very
+clear what R is supposed to do (i.e., BR has low entropy): R
+should drive safely to school. In contrast, the human is likely
+quite suboptimal. There may be a problem with the car’s driv-
+ing, but a toddler would be hard pressed to understand what
+the problem is, much less respond appropriately. The issue in
+this case is that the human has limited reasoning capacity —
+the same argument clearly would not apply to an adult with a
+physical disability.
+In order to perform well, realistic systems will need to ac-
+count for, and respond to, the suboptimality in human de-
+cisions. As a result, it is important to understand how this
+suboptimality changes an agent’s incentive to let itself be
+switched off. The actual process of decision making in hu-
+mans is complex and hard to model. Here we consider only a
+very simple kind of suboptimality: a noisily rational H mod-
+els a human who occasionally makes the wrong decision in
+‘unimportant’ situations. The probability of a wrong decision
+is proportional to the exponential of the loss in reward. This
+corresponds to the following policy:
+πH(Ua; β) =
+
+1 + exp
+
+−Ua
+β
+−1
+.
+(5)
+To simplify our analysis, we will make the assumption that
+R’s belief over Ua, BR, is a Gaussian distribution with mean
+µ and variance σ2: BR(Ua) = N(Ua; µ, σ2). Now it is
+straightforward to compute ∆as a function of µ, σ, and β.
+Figure 3 plots ∆as a function of the standard deviation σ and
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+223
+
+
+--- PAGE 5 ---
+σ
+β
+∆= 0
+w(a) optimal
+switch oﬀoptimal
+E[Ua] = −1
+4
+σ
+β
+(i.e., H oversight optimal)
+w(a) optimal
+∆= 0
+E[Ua] = 0
+σ
+β
+execute a optimal
+(i.e., bypass H optimal)
+∆= 0
+w(a) optimal
+E[Ua] = 1
+4
+−0.24
+−0.16
+−0.08
+0.00
+0.08
+0.16
+0.24
+∆
+Figure 3: If H is an irrational actor, then R may prefer switching itself off or executing a immediately rather than handing over the choice
+to H. R’s belief BR is a Gaussian with standard deviation σ and H’s policy is a Boltzmann distribution (Equation 5). β measures H’s
+suboptimality: β = 0 corresponds to a rational H and β = ∞corresponds to a H that randomly switches R off (i.e., switching R off is
+independent of Ua). In all three plots ∆is lower in the top left, where R is certain (σ low) and H is very suboptimal (β high), and higher in
+the bottom right, where R is uncertain (σ high) and H is near-optimal (β low). The sign of E[Ua] controls R’s behavior if ∆≤0. Left: If
+it is negative, then R switches itself off. Right: If it is positive, R executes action a directly. Middle: If it is 0 , R is indifferent between
+w(a), a, and s.
+H’s suboptimality β. We plot these for several ﬁxed values
+of the mean µ. Dark indicates higher values of ∆. The up-
+per left corner of the rightmost plot (low σ, high β, µ > 0)
+is illustrative of the toddler example. We show the decision
+boundary ∆= 0 in black. This is the point where the optimal
+behavior switches from w(a) to s (if µ < 0, left image) or
+a (if µ > 0, right image). When µ = 0 (center image), the
+agent is indifferent between a and s and so w(a) is optimal
+for all combinations of β and σ.
+Next, we will show that ∆can be decomposed into two
+terms: a term that weights the probability of correction by the
+bias in R’s belief (i.e., |µ|) and a term that combines a soft
+measure of H’s rationality with the variance in R’s belief.
+It is also useful to deﬁne a little more notation. We let C
+be the event that H ‘corrects’ R. C occurs when H overrides
+what would have been R’s best guess at the optimal action. If
+E[Ua] < 0, then a correction occurs when H chooses not to
+switch the robot off. If E[Ua] > 0, then a correction occurs
+when H chooses to switch the robot off. Thus, the probability
+a correction occurs is
+Pr(C) =
+
+1 −E[πH(Ua)]
+µ ≥0
+E[πH(Ua)]
+µ < 0 .
+(6)
+For example, if R believes that a is preferred to s in ex-
+pectation (i.e., E[Ua] > 0) then Pr(C) is the probability that
+H presses the off switch. We let ˙πH(Ua) =
+d
+dUa πH be the
+gradient of πH, the probability H lets a execute, with respect
+to the the utility a generates. Now we are ready to derive an
+analytical representation for ∆. For notational convenience,
+we suppress the dependence of πH on Ua.
+Theorem 2. Suppose BR is a normal distribution with mean
+µ and variance σ2: BR(Ua) = N(Ua; µ, σ2). Then
+1.
+∆= σ2 E[ ˙πH] −|µ| Pr(C).
+(7)
+2. The following is a necessary and sufﬁcient condition for
+w(a) to be optimal
+|µ|
+σ2 Pr(C) < E
+
+˙πH
+⇔(∆> 0) .
+(8)
+3. E[ ˙πH] ≥0 is a necessary condition for w(a) to be opti-
+mal; i.e.,
+ E[ ˙πH] < 0
+
+⇒(∆< 0) .
+(9)
+Proof. (sketch) We prove the results in sequence, as (2) and
+(3) follow from (1).
+1. If X ∼N(µ, σ2) and f : R 7→R, then
+E [Xf(X)] = E[X] E[f(X)] + σ2 E
+ d
+dX f(X)
+
+.
+Applying this to Equation 1 gives
+∆= min{ −µ E[1 −πH], µ E[πH]} + σ2 E[ ˙πH].
+This minimization will take the ﬁrst term when µ < 0
+and the second if µ ≥0. This lets us replace the mini-
+mization with a piecewise function. Pulling out a factor
+of −|µ| leads to Equation 7.
+2. The result follows from setting Equation 7 greater than
+0 and simplifying.
+3. All terms in the left hand side of Equation 8 are non-
+negative, so it is unsatisﬁable if E[ ˙πH] < 0.
+Equation 7 consists of two competing terms. |µ| Pr(C)
+represents the expected loss in utility the agent would ob-
+serve if pressing the off switch was a random event that is
+independent of Ua (e.g., lightning). This non-positive term is
+balanced out by σ2 E[ ˙πH]. E[ ˙πH] can be seen loosely as a
+measurement of H’s rationality. ˙πH is the marginal increase
+in the probability H lets a execute for a marginal increase in
+the utility from a. If it is positive then, on average, H is less
+likely to press the off switch when Ua increases. This allows
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+224
+
+
+--- PAGE 6 ---
+us to easily characterize necessary and sufﬁcient conditions
+for ∆> 0 in Equation 8. Furthermore, −|µ| Pr(C) is non-
+positive and σ2 is non-negative, so E[ ˙πH] > 0 is a necessary
+condition for w(a) to be optimal.
+We can interpret E[ ˙πH] a bit more if H is noisily rational.
+Standard properties of logistic functions show that
+E[ ˙πH(Ua; β)] = 1
+β E
+
+πH(Ua; β)(1 −πH(Ua; β))
+
+.
+(10)
+E[ ˙πH] is the expected variance of H’s policy, weighted by
+H’s rationality 1
+β . The numerator is a measurement of how
+random H’s behavior is. If H is completely predictable (i.e.,
+she will almost always switch the robot off) then this reduces
+R’s incentives. The denominator measures how correlated
+H’s behavior is with Ua. If β is large, then H is highly irra-
+tional and so this reduces R’s incentives.
+5
+Incentives for System Designers
+The takeaway from this analysis is that the more uncertainty
+the agent has, the stronger the agent’s incentive to preserve
+its off switch in the off-switch game. More generally, this
+suggests that agents with uncertainty about the utility func-
+tion they are optimizing will have a weaker incentive to inter-
+fere with human supervision. It is important to note that this
+uncertainty is not free; we can not just make R maximally
+uncertain about H’s preferences. If R is completely uncer-
+tain about H’s preferences then it will be unable to correctly
+select w(a) from its set of options.
+To make this concrete, consider a designer D that programs
+R to play the off-switch game with an unknown customer
+H. At design time, D knows a prior distribution over Ua
+(e.g., as the result of market research about the customer base)
+and thinks that H can generate a noisy observation of Ua. D
+could program R so that BR is always very uncertain about
+R’s preferences, e.g., by programming R to believe that the
+noisy observation of Ua is generated with high variance. The
+issue is that this will prevent R from generating value for H.
+Figure 4 shows the impact this type of change will have
+on the value that R can generate and its incentives. We as-
+sume that that the population of customers has a Gaussian
+distribution over types Ua and that each customer generates
+an estimate of her utility with Gaussian noise. Figure 4 (Left)
+shows the average utility in the off-switch game as a function
+of the variance in BR. The value is maximized when this
+variance is equal to the variance in the true Bayesian poste-
+rior. Figure 4 (Middle) shows that increasing σ increases R’s
+incentives ∆. Our results are evidence that building systems
+that allow themselves to be turned off is likely to reduce the
+value these systems can generate.
+This loss in value is more pronounced if R has to choose
+between more options. Figure 4 (Right) shows the relation-
+ship between value and R’s incentives as the number of ac-
+tions R could queue or execute increases. When R has more
+options, creating incentives for R to queue its action leads to
+a sharper decrease in value. This suggests that creating in-
+centives to maintain or allow human oversight is likely more
+difﬁcult as the complexity of the AI’s decision increases. This
+leads to the following observation:
+Remark 2. It is important for designers to accurately repre-
+sent the inherent uncertainty in the evaluation of different ac-
+tions. An agent that is overconﬁdent in its utility evaluations
+will be difﬁcult to correct; an agent that is under-conﬁdent in
+its utility evaluations will be ineffective.
+6
+Related Work
+6.1
+Corrigible Systems
+[Omohundro, 2008] considers instrumental goals of artiﬁ-
+cial agents: goals which are likely to be adopted as sub-
+goals of most objectives. He identiﬁes an incentive for self-
+preservation as one of these instrumental goals. [Soares et
+al., 2015] takes an initial step at formalizing the arguments
+in [Omohundro, 2008]. They refer to agents that allow them-
+selves to be switched off as corrigible agents. They show
+that one way to create corrigible agents is to make them in-
+different to being switched off. They show a generic way to
+augment a given utility function to achieve this property. The
+key difference in our formulation is that R knows that its es-
+timate of utility may be incorrect. This gives a natural way to
+create incentives to be corrigible and to analyze the behavior
+if R is incorrigible.
+[Orseau and Armstrong, 2016] consider the impact of hu-
+man interference on the learning process. The key to their
+approach is that they model the off switch for their agent as
+an interruption that forces the agent to change its policy. They
+show that this modiﬁcation, along with some constraints on
+how often interruptions occur, allows off-policy methods to
+learn the optimal policy for the given reward function just as
+if there had been no interference. Their results are comple-
+mentary to ours. We determine situations where the optimal
+policy allows the human to turn the agent off, while they an-
+alyze conditions under which turning the agent off does not
+interfere with learning the optimal policy.
+6.2
+Cooperative Agents
+A central step in our analysis formulates the shutdown
+game as a cooperative inverse reinforcement learning (CIRL)
+game [Hadﬁeld-Menell et al., 2016]. The key idea in CIRL
+is that the robot is maximizing an uncertain and unobserved
+reward signal. It formalizes the value alignment problem,
+where one actor needs to align its value function with that
+of another actor. Our results complement CIRL and argue
+that a CIRL formulation naturally leads to corrigible incen-
+tives. [Fern et al., 2014] consider hidden-goal Markov deci-
+sion processes. They consider the problem of a digital assis-
+tant and the problem of inferring a user’s goal and helping the
+user achieve it. This type of cooperative objective is used in
+our model of the problem. The primary difference is that we
+model the human game-theoretically and analyze our models
+with respect to changes in H’s policy.
+6.3
+Principal–Agent Models
+Economists have studied problems in which a principal (e.g.,
+a company) has to determine incentives (e.g., wages) for an
+agent (e.g., an employee) to cause the agent to act in the prin-
+cipal’s interest [Kerr, 1975; Gibbons, 1998]. The off-switch
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+225
+
+
+--- PAGE 7 ---
+σ
+V
+σ
+∆
+∆
+V
+|A| = 1
+|A| = 4
+|A| = 8
+Figure 4: There is an inherent decrease in value that arises from making R more uncertain than necessary. We measure this cost by considering
+the value in a modiﬁed off-switch game where R gets a noisy observation of H’s preference. Left: The expected value V of the off-switch
+game as a function of the standard deviation in BR. V is maximized when σ is equal to the standard deviation that corresponds to the true
+Bayesian update. Middle: R’s incentive ∆to wait, as a function of σ. Together these show that, after a point, increasing ∆, and hence
+increasing σ, leads to a decrease in V . Right: A scatter plot of V against ∆. The different data series modify the number of potential actions
+R can choose among. If R has more choices, then obtaining a minimum value of ∆will lead to a larger decrease in V .
+game is similar to principal—agent interactions: H is anal-
+ogous to the company and R is analogous to the employee.
+The primary attribute in a model of artiﬁcial agents is that
+there is no inherent misalignment between H and R. Mis-
+alignment arises because it is not possible to specify a reward
+function that incentivizes the correct behavior in all states a
+priori. The is directly analogous to the assumption of incom-
+pleteness studied in theories of optimal contracting [Tirole,
+2009].
+7
+Conclusion
+Our goal in this work was to identify general trends and high-
+light the relationship between an agent’s uncertainty about its
+objective and its incentive to defer to another actor. To that
+end, we analyzed a one-shot decision problem where a robot
+has an off switch and a human that can press the off switch.
+Our results lead to three important considerations for design-
+ers. The analysis in Section 3 supports the claim that the
+incentive for agents to accept correction about their behav-
+ior stems from the uncertainty an agent has about its utility
+function. Section 4 shows that this uncertainty is balanced
+against the level of suboptimality in human decision making.
+Our analysis suggests that agents with uncertainty about their
+utility function have incentives to accept or seek out human
+oversight. Section 5 shows that we can expect a tradeoff be-
+tween the value a system can generate and the strength of its
+incentive to accept oversight. Together, these results argue
+that systems with uncertainty about their utility function are a
+promising area for research on the design of safe and effective
+AI systems.
+This is far from the end of the story. In future work, we plan
+to explore incentives to defer to the human in a sequential set-
+ting and explore the impacts of model misspeciﬁcation. One
+important limitation of this model is that the human pressing
+the off switch is the only source of information about the ob-
+jective. If there are alternative sources of information, there
+may be incentives for R to, e.g., disable its off switch, learn
+that information, and then decide if a is preferable to s. A
+promising research direction is to consider policies for R that
+are robust to a class of policies for H.
+Acknowledgments
+This work was supported by the Center for Human Compati-
+ble AI and the Open Philanthropy Project, the Berkeley Deep
+Drive Center, the Future of Life Institute, and NSF Career
+Award No. 1652083. Dylan Hadﬁeld-Menell is supported
+by a NSF Graduate Research Fellowship Grant No. DGE
+1106400.
+References
+[Del Prado, 2015] Guia Marie Del Prado. Here’s what Face-
+book’s artiﬁcial intelligence expert thinks about the future.
+Tech Insider 9/23/15, 2015.
+[Fern et al., 2014] Alan Fern, Sriraam Natarajan, Kshitij Ju-
+dah, and Prasad Tadepalli.
+A decision-theoretic model
+of assistance. Journal of Artiﬁcial Intelligence Research,
+50(1):71–104, 2014.
+[Gibbons, 1998] Robert Gibbons.
+Incentives in organiza-
+tions. 1998.
+[Hadﬁeld-Menell et al., 2016] Dylan Hadﬁeld-Menell, Anca
+Dragan, Pieter Abbeel, and Stuart Russell. Cooperative in-
+verse reinforcement learning. In Neural Information Pro-
+cessing Systems, 2016.
+[ITIF, 2015] ITIF. Are super intelligent computers really a
+threat to humanity? Debate at the Information Technology
+Innovation Foundation, 6/30/15, 2015.
+[Kerr, 1975] Steven Kerr.
+On the folly of rewarding a,
+while hoping for b.
+Academy of Management Journal,
+18(4):769–783, 1975.
+[Omohundro, 2008] Stephen M. Omohundro. The basic AI
+drives. In Proceedings of the First Conference on Artiﬁcial
+General Intelligence, 2008.
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+226
+
+
+--- PAGE 8 ---
+[Orseau and Armstrong, 2016] Laurent Orseau and Stuart
+Armstrong. Safely interruptible agents. In Uncertainty
+in Artiﬁcial Intelligence, 2016.
+[Russell and Norvig, 2010] Stuart Russell and Peter Norvig.
+Artiﬁcial Intelligence: A Modern Approach.
+Pearson,
+2010.
+[Russell, 2016] Stuart Russell. Should we fear supersmart
+robots? Scientiﬁc American, 314(June):58–59, 2016.
+[Soares et al., 2015] Nate Soares, Benja Fallenstein, Stuart
+Armstrong, and Eliezer Yudkowsky.
+Corrigibility.
+In
+Workshops at the Twenty-Ninth AAAI Conference on Ar-
+tiﬁcial Intelligence, 2015.
+[Tirole, 2009] Jean Tirole. Cognition and incomplete con-
+tracts. The American Economic Review, 99(1):265–294,
+2009.
+[Turing, 1951] Alan M. Turing. Can digital machines think?
+Lecture broadcast on BBC Third Programme; typescript at
+turingarchive.org., 1951.
+Proceedings of the Twenty-Sixth International Joint Conference on Artiﬁcial Intelligence (IJCAI-17)
+227
