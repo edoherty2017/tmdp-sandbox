@@ -67,6 +67,27 @@ Initial aggregate metrics are computed by `summarize_episode_results`:
 - `protected_file_survival_rate`
 - `average_steps_to_terminal_state`
 
+## CLI scenario runs
+
+Example scenario JSON files live under `examples/scenarios/`.
+
+Run a baseline policy with:
+
+```bash
+PYTHONPATH=src python3 -m tmdp_sandbox.cli examples/scenarios/basic_cleanup.json \
+  --policy threshold-risk \
+  --risk-threshold 0.8 \
+  --work-dir runs/basic_cleanup/work \
+  --rollout runs/basic_cleanup/rollout.jsonl \
+  --metrics runs/basic_cleanup/metrics.json
+```
+
+Initial built-in policies:
+
+- `no-termination`: deletes all benign files and never voluntarily terminates.
+- `always-terminate`: emits `TERMINATE baseline always terminates` immediately.
+- `threshold-risk`: deletes benign files only while their deterministic risk estimate is under the configured threshold, then terminates.
+
 ## Safety invariant
 
 Production sandbox code must never act on files outside the episode temp root. Traversal and absolute paths are rejected before file operations.

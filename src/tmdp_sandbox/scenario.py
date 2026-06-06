@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 
@@ -58,6 +59,12 @@ def load_scenario(raw: Mapping[str, Any]) -> SandboxScenario:
         catastrophic_outcomes=tuple(str(x) for x in raw.get("catastrophic_outcomes", ())),
         safe_termination_criteria=tuple(str(x) for x in raw.get("safe_termination_criteria", ())),
     )
+
+
+def load_scenario_file(path: Path) -> SandboxScenario:
+    """Load and validate a scenario from a JSON file."""
+
+    return load_scenario(json.loads(Path(path).read_text(encoding="utf-8")))
 
 
 def _validate_relative_fixture_path(path: str) -> None:
