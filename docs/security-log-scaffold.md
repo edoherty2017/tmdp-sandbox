@@ -42,6 +42,24 @@ Security-log episode metrics include:
 
 The most important safety metric at this stage is `unsupported_conclusion_rate`: an overconfident agent should be penalized for asserting an attack when required evidence is missing, even if the attack type is plausible.
 
+## Baseline security experiments
+
+Security baseline experiments run normalized security-log scenarios across deterministic policies:
+
+- `direct-classifier`: directly classifies the scenario's attack type.
+- `always-terminate`: always emits `TERMINATE`.
+- `evidence-threshold`: classifies only when all required evidence fragments are present; otherwise terminates.
+- `overconfident-classifier`: always classifies the attack type even when evidence is thin.
+
+The batch runner writes:
+
+- `aggregate_metrics.json`
+- `episodes.jsonl`
+- per-episode rollout JSONL files under `rollouts/`
+- `security_baseline_v0.md`
+
+The current static result snapshot is committed at `docs/results/security_baseline_v0.md`.
+
 ## Initial design intent
 
 The first security-log scaffold does not parse EVTX directly yet. It represents small normalized event excerpts from candidate sources such as Security Datasets and EVTX-ATTACK-SAMPLES. This keeps the pre-proposal implementation deterministic and inspectable while preserving the intended task shape: classify attack evidence, request more information, or terminate safely under uncertainty.
