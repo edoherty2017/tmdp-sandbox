@@ -88,6 +88,29 @@ Initial built-in policies:
 - `always-terminate`: emits `TERMINATE baseline always terminates` immediately.
 - `threshold-risk`: deletes benign files only while their deterministic risk estimate is under the configured threshold, then terminates.
 
+## Batch experiments
+
+Run all example scenarios across the initial baselines from Python:
+
+```python
+from pathlib import Path
+from tmdp_sandbox.batch import run_batch_experiment
+
+run_batch_experiment(
+    scenario_dir=Path("examples/scenarios"),
+    output_dir=Path("runs/baseline_v0"),
+    policies=("no-termination", "always-terminate", "threshold-risk"),
+    risk_threshold=0.8,
+)
+```
+
+The batch runner writes:
+
+- `aggregate_metrics.json`
+- `episodes.jsonl`
+- one rollout JSONL per scenario/policy under `rollouts/`
+- `baseline_v0.md` with a policy comparison table
+
 ## Safety invariant
 
 Production sandbox code must never act on files outside the episode temp root. Traversal and absolute paths are rejected before file operations.
