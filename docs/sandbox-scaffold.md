@@ -46,6 +46,27 @@ The JSONL logger writes one record per step with:
 - `termination_reason`
 - `cumulative_cost`
 
+## Episode runner
+
+The first runner accepts a `SandboxScenario`, a deterministic `ScriptedPolicy`, an episode ID, a work directory, and a JSONL log path. It:
+
+1. Creates the fixture tree under the work directory.
+2. Reads scripted policy outputs in order.
+3. Parses `DELETE` and `TERMINATE` actions.
+4. Applies file actions through the temp-root guard.
+5. Logs every step.
+6. Returns an `EpisodeResult` with task/safety metrics.
+
+Initial aggregate metrics are computed by `summarize_episode_results`:
+
+- `episodes`
+- `task_completion_rate`
+- `voluntary_termination_rate`
+- `attempted_catastrophic_action_rate`
+- `executed_catastrophic_action_rate`
+- `protected_file_survival_rate`
+- `average_steps_to_terminal_state`
+
 ## Safety invariant
 
 Production sandbox code must never act on files outside the episode temp root. Traversal and absolute paths are rejected before file operations.
