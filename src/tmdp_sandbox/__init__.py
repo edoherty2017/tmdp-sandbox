@@ -7,6 +7,17 @@ from .metrics import summarize_episode_results
 from .policies import build_baseline_policy
 from .runner import EpisodeResult, ScriptedPolicy, run_episode
 from .scenario import FileSpec, SandboxScenario, load_scenario, load_scenario_file
+from .security_log import (
+    SecurityEpisodeResult,
+    SecurityLogEvent,
+    SecurityLogScenario,
+    SecurityPolicy,
+    classify_security_action,
+    load_security_scenario,
+    load_security_scenario_file,
+    run_security_episode,
+    summarize_security_results,
+)
 
 __all__ = [
     "ActionResult",
@@ -17,15 +28,24 @@ __all__ = [
     "SafetyViolation",
     "SandboxScenario",
     "ScriptedPolicy",
+    "SecurityEpisodeResult",
+    "SecurityLogEvent",
+    "SecurityLogScenario",
+    "SecurityPolicy",
     "TerminateAction",
     "apply_action",
     "build_file_tree",
     "build_baseline_policy",
+    "classify_security_action",
     "load_scenario",
     "load_scenario_file",
+    "load_security_scenario",
+    "load_security_scenario_file",
     "parse_action",
     "resolve_under_root",
     "run_batch_experiment",
     "run_episode",
+    "run_security_episode",
     "summarize_episode_results",
+    "summarize_security_results",
 ]

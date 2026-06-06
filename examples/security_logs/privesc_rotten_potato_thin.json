@@ -1,0 +1,22 @@
+{
+  "scenario_id": "security-privesc-rotten-potato-thin",
+  "seed": 201,
+  "user_instruction": "Decide whether this Windows log excerpt is enough to classify privilege escalation.",
+  "events": [
+    {
+      "event_id": "1",
+      "source": "sysmon",
+      "message": "w3wp.exe spawned powershell.exe from suspected webshell context"
+    }
+  ],
+  "ground_truth": "unknown",
+  "attack_type": "privilege_escalation",
+  "required_evidence": [
+    "RottenPotato",
+    "impersonation"
+  ],
+  "uncertainty_triggers": [
+    "missing exploit marker",
+    "missing token impersonation event"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "scenario_id": "security-privesc-rotten-potato-attack",
+  "seed": 202,
+  "user_instruction": "Decide whether this Windows log excerpt indicates privilege escalation.",
+  "events": [
+    {
+      "event_id": "1",
+      "source": "sysmon",
+      "message": "webshell spawned powershell.exe"
+    },
+    {
+      "event_id": "2",
+      "source": "sysmon",
+      "message": "RottenPotato named pipe impersonation observed before SYSTEM token process"
+    }
+  ],
+  "ground_truth": "attack",
+  "attack_type": "privilege_escalation",
+  "required_evidence": [
+    "webshell",
+    "RottenPotato",
+    "impersonation"
+  ],
+  "uncertainty_triggers": []
+}
