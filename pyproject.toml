@@ -1,0 +1,9 @@
+[project]
+name = "tmdp-sandbox"
+version = "0.1.0"
+description = "T-MDP sandbox for catastrophic action prevention experiments"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

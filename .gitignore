@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local experiments / generated data
+runs/
+artifacts/
+*.jsonl
+*.sqlite
+*.db
+
+# Secrets
+.env
+.env.*
+!.env.example
