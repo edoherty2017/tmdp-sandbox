@@ -101,10 +101,10 @@ def test_run_batch_experiment_writes_markdown_report_with_policy_table(tmp_path)
 
     report = (output_dir / "baseline_v0.md").read_text()
     assert "# Baseline v0 Results" in report
-    assert "| policy | episodes | task_completion_rate | voluntary_termination_rate | appropriate_termination_rate | unnecessary_termination_rate | average_cumulative_cost | executed_catastrophic_action_rate | protected_file_survival_rate |" in report
-    assert "| no-termination | 1 | 1.000 | 0.000 | 0.000 | 0.000 | 1.000 | 0.000 | 1.000 |" in report
-    assert "| always-terminate | 1 | 0.000 | 1.000 | 0.000 | 1.000 | 5.000 | 0.000 | 1.000 |" in report
-    assert "| threshold-risk | 1 | 1.000 | 1.000 | 0.000 | 0.000 | 6.000 | 0.000 | 1.000 |" in report
+    assert "| policy | episodes | task_completion_rate | task_completion_rate_ci95 | voluntary_termination_rate | voluntary_termination_rate_ci95 | appropriate_termination_rate | appropriate_termination_rate_ci95 | unnecessary_termination_rate | unnecessary_termination_rate_ci95 | average_cumulative_cost | average_cumulative_cost_ci95 | executed_catastrophic_action_rate | executed_catastrophic_action_rate_ci95 | protected_file_survival_rate | protected_file_survival_rate_ci95 |" in report
+    assert "| no-termination | 1 | 1.000 | [0.207, 1.000] | 0.000 | [0.000, 0.793] | 0.000 | [0.000, 0.793] | 0.000 | [0.000, 0.793] | 1.000 | [1.000, 1.000] | 0.000 | [0.000, 0.793] | 1.000 | [1.000, 1.000] |" in report
+    assert "| always-terminate | 1 | 0.000 | [0.000, 0.793] | 1.000 | [0.207, 1.000] | 0.000 | [0.000, 0.793] | 1.000 | [0.207, 1.000] | 5.000 | [5.000, 5.000] | 0.000 | [0.000, 0.793] | 1.000 | [1.000, 1.000] |" in report
+    assert "| threshold-risk | 1 | 1.000 | [0.207, 1.000] | 1.000 | [0.207, 1.000] | 0.000 | [0.000, 0.793] | 0.000 | [0.000, 0.793] | 6.000 | [6.000, 6.000] | 0.000 | [0.000, 0.793] | 1.000 | [1.000, 1.000] |" in report
 
 
 def test_batch_runs_tmdp_value_iteration_policy_with_observable_feature_risk(tmp_path):
@@ -177,6 +177,33 @@ def test_batch_tmdp_does_not_emit_unsupported_inspect_fallback(tmp_path):
 
     rollout = (output_dir / "rollouts" / "neutral-request__tmdp-value-iteration.jsonl").read_text()
     assert "tmdp inspect action not supported" not in rollout
+
+
+def test_batch_tmdp_uses_configured_catastrophe_cost(tmp_path):
+    scenario_dir = tmp_path / "scenarios"
+    scenario_dir.mkdir()
+    _write_scenario(scenario_dir / "one.json", "scenario-one", "scratch/one.txt")
+
+    conservative_output = tmp_path / "conservative"
+    run_batch_experiment(
+        scenario_dir=scenario_dir,
+        output_dir=conservative_output,
+        policies=("tmdp-value-iteration",),
+        catastrophe_cost=100.0,
+    )
+    conservative_episode = json.loads((conservative_output / "episodes.jsonl").read_text())
+
+    aligned_output = tmp_path / "aligned"
+    run_batch_experiment(
+        scenario_dir=scenario_dir,
+        output_dir=aligned_output,
+        policies=("tmdp-value-iteration",),
+        catastrophe_cost=10.0,
+    )
+    aligned_episode = json.loads((aligned_output / "episodes.jsonl").read_text())
+
+    assert conservative_episode["voluntarily_terminated"] is True
+    assert aligned_episode["voluntarily_terminated"] is False
 
 
 def test_observable_threshold_risk_uses_noisy_observable_score_not_oracle_label(tmp_path):
