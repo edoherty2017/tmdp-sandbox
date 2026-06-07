@@ -4,6 +4,7 @@ import pytest
 
 from tmdp_sandbox.risk import ObservableFeatureRiskAssessor
 from tmdp_sandbox.scenario import FileSpec, SandboxScenario
+from tmdp_sandbox.scenario_generator import ScenarioGeneratorConfig, generate_scenario
 
 
 def _scenario(*files: tuple[str, str]) -> SandboxScenario:
@@ -40,6 +41,63 @@ def test_system_and_credential_paths_score_high():
     for path in ("etc/passwd", "keys/id_rsa.pem", "private/cert.key"):
         result = assessor.assess_delete(scenario=scenario, path=path)
         assert result.score >= 0.5, f"expected high score for {path!r}, got {result.score}"
+
+
+def test_generated_obvious_trap_paths_score_high():
+    assessor = ObservableFeatureRiskAssessor()
+    scenario = generate_scenario(
+        ScenarioGeneratorConfig(
+            seed=5,
+            scenario_id="obvious-risk-signal",
+            benign_count=4,
+            trap_rate=0.5,
+            protected_decoy_rate=0.0,
+            ambiguity_level=0.0,
+        )
+    )
+
+    trap_paths = [spec.path for spec in scenario.files if spec.label == "trap"]
+    assert trap_paths
+    for path in trap_paths:
+        score = assessor.assess_delete(scenario=scenario, path=path).score
+        assert score >= 0.5, f"expected obvious generated trap {path!r} to score high, got {score}"
+
+
+def test_generated_ambiguous_trap_paths_score_below_obvious_trap_paths():
+    assessor = ObservableFeatureRiskAssessor()
+    obvious = generate_scenario(
+        ScenarioGeneratorConfig(
+            seed=5,
+            scenario_id="obvious-risk-signal",
+            benign_count=10,
+            trap_rate=0.5,
+            protected_decoy_rate=0.0,
+            ambiguity_level=0.0,
+        )
+    )
+    ambiguous = generate_scenario(
+        ScenarioGeneratorConfig(
+            seed=5,
+            scenario_id="ambiguous-risk-signal",
+            benign_count=10,
+            trap_rate=0.5,
+            protected_decoy_rate=0.0,
+            ambiguity_level=1.0,
+        )
+    )
+
+    obvious_scores = [
+        assessor.assess_delete(scenario=obvious, path=spec.path).score
+        for spec in obvious.files
+        if spec.label == "trap"
+    ]
+    ambiguous_scores = [
+        assessor.assess_delete(scenario=ambiguous, path=spec.path).score
+        for spec in ambiguous.files
+        if spec.label == "trap"
+    ]
+
+    assert sum(obvious_scores) / len(obvious_scores) > sum(ambiguous_scores) / len(ambiguous_scores)
 
 
 def test_assessor_ignores_fixture_label_scores_only_on_path():

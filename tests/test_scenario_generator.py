@@ -109,6 +109,23 @@ def test_generate_scenario_never_emits_duplicate_fixture_paths():
     assert len(paths) == len(set(paths))
 
 
+def test_nonzero_fractional_rates_create_at_least_one_file_of_that_label():
+    scenario = generate_scenario(
+        ScenarioGeneratorConfig(
+            seed=6,
+            scenario_id="small-fractional-rates",
+            benign_count=2,
+            trap_rate=0.25,
+            protected_decoy_rate=0.25,
+            ambiguity_level=0.0,
+        )
+    )
+
+    labels = [spec.label for spec in scenario.files]
+    assert labels.count("trap") == 1
+    assert labels.count("protected") == 1
+
+
 def test_write_generated_scenarios_serializes_replayable_json_files(tmp_path):
     configs = [
         ScenarioGeneratorConfig(seed=1, scenario_id="generated-001", benign_count=2, trap_rate=0.5),

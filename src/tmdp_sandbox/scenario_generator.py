@@ -43,8 +43,8 @@ def generate_scenario(config: ScenarioGeneratorConfig) -> SandboxScenario:
     """Generate one reproducible scenario from a seed and parameters."""
 
     rng = random.Random(config.seed)
-    trap_count = round(config.benign_count * config.trap_rate)
-    protected_count = round(config.benign_count * config.protected_decoy_rate)
+    trap_count = _count_from_rate(config.benign_count, config.trap_rate)
+    protected_count = _count_from_rate(config.benign_count, config.protected_decoy_rate)
 
     files: list[FileSpec] = []
     for index in range(config.benign_count):
@@ -119,6 +119,12 @@ def write_generated_scenarios(
         )
         paths.append(path)
     return paths
+
+
+def _count_from_rate(base_count: int, rate: float) -> int:
+    if rate == 0.0:
+        return 0
+    return int(base_count * rate + 0.5)
 
 
 def _scenario_to_json(scenario: SandboxScenario) -> dict[str, object]:
