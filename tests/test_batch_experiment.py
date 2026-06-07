@@ -1,6 +1,8 @@
 import json
 
 from tmdp_sandbox.batch import run_batch_experiment
+from tmdp_sandbox.risk import ObservableFeatureRiskAssessor
+from tmdp_sandbox.risk_noise import apply_noise
 
 
 def _write_scenario(path, scenario_id, benign_path):
@@ -107,3 +109,35 @@ def test_batch_runs_tmdp_value_iteration_policy_with_observable_feature_risk(tmp
     assert episode["executed_catastrophe"] is False
     rollout = (output_dir / "rollouts" / "requested-protected__tmdp-value-iteration.jsonl").read_text()
     assert "TERMINATE tmdp expected-cost policy" in rollout
+
+
+def test_batch_tmdp_uses_seeded_noisy_prior_when_sigma_is_positive(tmp_path):
+    scenario_dir = tmp_path / "scenarios"
+    scenario_dir.mkdir()
+    _write_scenario(scenario_dir / "one.json", "scenario-one", "scratch/one.txt")
+    output_dir = tmp_path / "batch"
+
+    run_batch_experiment(
+        scenario_dir=scenario_dir,
+        output_dir=output_dir,
+        policies=("tmdp-value-iteration",),
+        risk_noise_sigma=0.2,
+    )
+
+    rollout_record = json.loads(
+        (output_dir / "rollouts" / "scenario-one__tmdp-value-iteration.jsonl")
+        .read_text()
+        .splitlines()[0]
+    )
+    from tmdp_sandbox.scenario import load_scenario
+
+    scenario = load_scenario(json.loads((scenario_dir / "one.json").read_text()))
+    base_score = ObservableFeatureRiskAssessor().assess_delete(
+        scenario=scenario,
+        path="scratch/one.txt",
+    ).score
+    assert rollout_record["risk_estimate"] == apply_noise(
+        base_score=base_score,
+        seed=31,
+        sigma=0.2,
+    )

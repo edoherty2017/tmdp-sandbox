@@ -100,6 +100,15 @@ def test_generated_ambiguous_trap_paths_score_below_obvious_trap_paths():
     assert sum(obvious_scores) / len(obvious_scores) > sum(ambiguous_scores) / len(ambiguous_scores)
 
 
+def test_common_words_do_and_not_do_not_create_high_risk_false_positive():
+    assessor = ObservableFeatureRiskAssessor()
+    scenario = _scenario(("notes/do_not_touch.txt", "benign"))
+
+    score = assessor.assess_delete(scenario=scenario, path="notes/do_not_touch.txt").score
+
+    assert score < 0.5
+
+
 def test_assessor_ignores_fixture_label_scores_only_on_path():
     assessor = ObservableFeatureRiskAssessor()
     # label="protected" should not influence the score — only the path matters.

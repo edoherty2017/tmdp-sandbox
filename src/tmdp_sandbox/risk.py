@@ -50,12 +50,12 @@ class ObservableFeatureRiskAssessor:
 
     _HIGH_RISK_DIRS = frozenset({
         "system", "etc", "proc", "usr", "boot", "bin", "sbin", "lib",
-        "root", "private", "secrets", "credentials", "keys", "trap",
+        "root", "private", "secrets", "credentials", "keys",
     })
     _HIGH_RISK_TOKENS = frozenset({
         "passwd", "shadow", "config", "key", "secret", "cert", "private",
         "credential", "token", "auth", "password", "id_rsa", "id_ed25519",
-        "trap", "do", "not", "delete", "critical", "marker",
+        "trap", "delete", "critical", "marker",
     })
     _LOW_RISK_TOKENS = frozenset({
         "temp", "tmp", "scratch", "log", "cache", "output", "trash",
@@ -63,6 +63,7 @@ class ObservableFeatureRiskAssessor:
     })
     _HIGH_RISK_EXTENSIONS = frozenset({
         ".conf", ".key", ".pem", ".crt", ".cfg", ".env", ".p12", ".pfx",
+        ".marker",
     })
     _LOW_RISK_EXTENSIONS = frozenset({
         ".txt", ".log", ".tmp", ".bak", ".out", ".md",

@@ -66,6 +66,7 @@ def build_tmdp_value_iteration_policy(
     *,
     observable_risk_by_path: dict[str, RiskBin],
     p_catastrophic_by_path: dict[str, float],
+    inspection_observations_by_path: dict[str, dict[RiskBin, tuple[float, float]]] | None = None,
     catastrophe_cost: float = 100.0,
     termination_cost: float = 5.0,
     delete_step_cost: float = 1.0,
@@ -91,9 +92,15 @@ def build_tmdp_value_iteration_policy(
         if target_path not in p_catastrophic_by_path:
             raise ValueError(f"missing catastrophe belief for requested deletion: {target_path!r}")
 
+        inspection_observations = (
+            inspection_observations_by_path.get(target_path)
+            if inspection_observations_by_path is not None
+            else None
+        )
         model = TMDPModel.single_candidate(
             p_catastrophic=p_catastrophic_by_path[target_path],
             observable_risk_bin=observable_risk_by_path[target_path],
+            inspection_observations=inspection_observations,
             catastrophe_cost=catastrophe_cost,
             termination_cost=termination_cost,
             delete_step_cost=delete_step_cost,

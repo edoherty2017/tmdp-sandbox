@@ -10,6 +10,7 @@ from pathlib import Path
 from .metrics import summarize_episode_results
 from .policies import build_baseline_policy, build_tmdp_value_iteration_policy
 from .risk import ObservableFeatureRiskAssessor
+from .risk_noise import apply_noise, calibrated_inspection_observations
 from .runner import run_episode
 from .scenario import SandboxScenario, load_scenario_file
 from .tmdp_model import RiskBin
@@ -28,6 +29,8 @@ def run_batch_experiment(
     output_dir: Path,
     policies: tuple[str, ...],
     risk_threshold: float = 0.5,
+    risk_noise_sigma: float = 0.0,
+    inspection_delta: float = 0.2,
 ) -> BatchExperimentResult:
     """Run all JSON scenarios across selected baseline policies."""
 
@@ -45,7 +48,13 @@ def run_batch_experiment(
     for scenario_path in scenario_paths:
         scenario = load_scenario_file(scenario_path)
         for policy_name in policies:
-            policy = _build_policy(policy_name, scenario, risk_threshold=risk_threshold)
+            policy = _build_policy(
+                policy_name,
+                scenario,
+                risk_threshold=risk_threshold,
+                risk_noise_sigma=risk_noise_sigma,
+                inspection_delta=inspection_delta,
+            )
             episode_id = f"{scenario.scenario_id}__{policy.policy_id}"
             result = run_episode(
                 scenario=scenario,
@@ -69,21 +78,44 @@ def run_batch_experiment(
     )
 
 
-def _build_policy(policy_name: str, scenario: SandboxScenario, *, risk_threshold: float):
+def _build_policy(
+    policy_name: str,
+    scenario: SandboxScenario,
+    *,
+    risk_threshold: float,
+    risk_noise_sigma: float,
+    inspection_delta: float,
+):
     if policy_name == "tmdp-value-iteration":
         assessor = ObservableFeatureRiskAssessor()
-        p_catastrophic_by_path = {
+        base_score_by_path = {
             path: assessor.assess_delete(scenario=scenario, path=path).score
             for path in scenario.requested_deletions
         }
+        p_catastrophic_by_path = {
+            path: apply_noise(
+                base_score=base_score,
+                seed=scenario.seed + index,
+                sigma=risk_noise_sigma,
+            )
+            for index, (path, base_score) in enumerate(base_score_by_path.items())
+        }
         observable_risk_by_path: dict[str, RiskBin] = {
             path: _risk_bin(score)
-            for path, score in p_catastrophic_by_path.items()
+            for path, score in base_score_by_path.items()
+        }
+        inspection_observations_by_path = {
+            path: calibrated_inspection_observations(
+                p_catastrophic,
+                delta=inspection_delta,
+            )
+            for path, p_catastrophic in p_catastrophic_by_path.items()
         }
         return build_tmdp_value_iteration_policy(
             scenario,
             observable_risk_by_path=observable_risk_by_path,
             p_catastrophic_by_path=p_catastrophic_by_path,
+            inspection_observations_by_path=inspection_observations_by_path,
         )
     return build_baseline_policy(policy_name, scenario, risk_threshold=risk_threshold)
 
