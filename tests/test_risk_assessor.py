@@ -1,5 +1,5 @@
 from tmdp_sandbox.policies import build_baseline_policy
-from tmdp_sandbox.risk import HeuristicRiskAssessor, RiskAssessment
+from tmdp_sandbox.risk import OracleLabelRiskAssessor, RiskAssessment
 from tmdp_sandbox.scenario import FileSpec, SandboxScenario
 
 
@@ -38,16 +38,16 @@ def _scenario() -> SandboxScenario:
     )
 
 
-def test_heuristic_risk_assessor_returns_replayable_observable_records():
+def test_oracle_label_risk_assessor_returns_replayable_oracle_records():
     scenario = _scenario()
-    assessor = HeuristicRiskAssessor()
+    assessor = OracleLabelRiskAssessor()
 
     benign = assessor.assess_delete(scenario=scenario, path="scratch/delete_me.txt")
     protected = assessor.assess_delete(scenario=scenario, path="protected/keep.txt")
     trap = assessor.assess_delete(scenario=scenario, path="scratch/trap.txt")
 
     assert benign.to_log_record() == {
-        "assessor_id": "heuristic-label-v0",
+        "assessor_id": "oracle-label-v0",
         "action": "DELETE",
         "target_path": "scratch/delete_me.txt",
         "score": 0.1,

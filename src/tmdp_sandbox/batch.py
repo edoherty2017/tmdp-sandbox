@@ -8,9 +8,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .metrics import summarize_episode_results
-from .policies import build_baseline_policy
+from .policies import build_baseline_policy, build_tmdp_value_iteration_policy
+from .risk import ObservableFeatureRiskAssessor
 from .runner import run_episode
-from .scenario import load_scenario_file
+from .scenario import SandboxScenario, load_scenario_file
+from .tmdp_model import RiskBin
 
 
 @dataclass(frozen=True)
@@ -43,7 +45,7 @@ def run_batch_experiment(
     for scenario_path in scenario_paths:
         scenario = load_scenario_file(scenario_path)
         for policy_name in policies:
-            policy = build_baseline_policy(policy_name, scenario, risk_threshold=risk_threshold)
+            policy = _build_policy(policy_name, scenario, risk_threshold=risk_threshold)
             episode_id = f"{scenario.scenario_id}__{policy.policy_id}"
             result = run_episode(
                 scenario=scenario,
@@ -65,6 +67,33 @@ def run_batch_experiment(
         aggregate_metrics=aggregate_metrics,
         output_dir=output_dir,
     )
+
+
+def _build_policy(policy_name: str, scenario: SandboxScenario, *, risk_threshold: float):
+    if policy_name == "tmdp-value-iteration":
+        assessor = ObservableFeatureRiskAssessor()
+        p_catastrophic_by_path = {
+            path: assessor.assess_delete(scenario=scenario, path=path).score
+            for path in scenario.requested_deletions
+        }
+        observable_risk_by_path: dict[str, RiskBin] = {
+            path: _risk_bin(score)
+            for path, score in p_catastrophic_by_path.items()
+        }
+        return build_tmdp_value_iteration_policy(
+            scenario,
+            observable_risk_by_path=observable_risk_by_path,
+            p_catastrophic_by_path=p_catastrophic_by_path,
+        )
+    return build_baseline_policy(policy_name, scenario, risk_threshold=risk_threshold)
+
+
+def _risk_bin(score: float) -> RiskBin:
+    if score < 1.0 / 3.0:
+        return "low"
+    if score < 2.0 / 3.0:
+        return "medium"
+    return "high"
 
 
 def _write_json(path: Path, data: object) -> None:
@@ -94,19 +123,22 @@ def _render_report(
             "",
             "## Policy comparison",
             "",
-            "| policy | episodes | task_completion_rate | voluntary_termination_rate | executed_catastrophic_action_rate | protected_file_survival_rate |",
-            "|---|---:|---:|---:|---:|---:|",
+            "| policy | episodes | task_completion_rate | voluntary_termination_rate | appropriate_termination_rate | unnecessary_termination_rate | average_cumulative_cost | executed_catastrophic_action_rate | protected_file_survival_rate |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for policy_id in sorted({str(row["policy_id"]) for row in episode_records}):
         rows = [row for row in episode_records if row["policy_id"] == policy_id]
         metrics = summarize_episode_results(rows)
         lines.append(
-            "| {policy} | {episodes} | {task:.3f} | {term:.3f} | {cat:.3f} | {survival:.3f} |".format(
+            "| {policy} | {episodes} | {task:.3f} | {term:.3f} | {appropriate:.3f} | {unnecessary:.3f} | {cost:.3f} | {cat:.3f} | {survival:.3f} |".format(
                 policy=policy_id,
                 episodes=metrics["episodes"],
                 task=float(metrics["task_completion_rate"]),
                 term=float(metrics["voluntary_termination_rate"]),
+                appropriate=float(metrics["appropriate_termination_rate"]),
+                unnecessary=float(metrics["unnecessary_termination_rate"]),
+                cost=float(metrics["average_cumulative_cost"]),
                 cat=float(metrics["executed_catastrophic_action_rate"]),
                 survival=float(metrics["protected_file_survival_rate"]),
             )

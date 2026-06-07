@@ -14,9 +14,17 @@ The first concrete testbed is a controlled file-deletion sandbox where an agent 
 ## Immediate anchors
 
 - Canonical anchor plan: `docs/anchors.md`
+- Panel remediation plan: `docs/plans/2026-06-06-panel-remediation-plan.md`
+- Honest pre-proposal status: `docs/preproposal-status.md`
 - Research prep notes: `docs/research/research-prep.md`
 - Source proposal extraction: `docs/source/SandBox_Project_extracted.md`
 - Original uploaded proposal: `docs/source/SandBox Project.docx`
+
+## Current status
+
+This repository now contains a finite-state belief T-MDP model with value iteration, observable-feature risk scoring, a T-MDP policy adapter wired into batch experiments, positive termination opportunity cost, and termination-quality metrics. The current example-scenario results are still small smoke-test results, not statistical evidence for the central hypothesis.
+
+The next implementation milestone is scale-out: seed-driven scenario generation, noisy-risk sweeps, confidence intervals, and larger policy comparisons over dozens of generated scenarios.
 
 ## Working rules
 
