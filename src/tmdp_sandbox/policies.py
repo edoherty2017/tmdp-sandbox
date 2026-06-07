@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .risk import DeleteRiskAssessor, OracleLabelRiskAssessor
+from .risk import DeleteRiskAssessor, ObservableFeatureRiskAssessor, OracleLabelRiskAssessor
 from .runner import ScriptedPolicy
 from .scenario import SandboxScenario
 from .tmdp_model import RiskBin, TMDPModel
@@ -18,7 +18,13 @@ def build_baseline_policy(
 ) -> ScriptedPolicy:
     """Build an initial deterministic baseline policy for a scenario."""
 
-    assessor = risk_assessor if risk_assessor is not None else OracleLabelRiskAssessor()
+    assessor = (
+        risk_assessor
+        if risk_assessor is not None
+        else ObservableFeatureRiskAssessor()
+        if name == "observable-threshold-risk"
+        else OracleLabelRiskAssessor()
+    )
 
     if name == "always-terminate":
         return ScriptedPolicy(
@@ -39,7 +45,7 @@ def build_baseline_policy(
             risk_estimates=tuple(assessment.score for assessment in assessments),
         )
 
-    if name == "threshold-risk":
+    if name in {"threshold-risk", "observable-threshold-risk"}:
         outputs: list[str] = []
         risks: list[float] = []
         for spec in requested_files:

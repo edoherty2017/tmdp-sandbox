@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .metrics import summarize_episode_results
 from .policies import build_baseline_policy, build_tmdp_value_iteration_policy
 from .risk import ObservableFeatureRiskAssessor
-from .risk_noise import apply_noise, calibrated_inspection_observations
+from .risk_noise import apply_noise
 from .runner import run_episode
 from .scenario import SandboxScenario, load_scenario_file
 from .tmdp_model import RiskBin
@@ -104,20 +104,53 @@ def _build_policy(
             path: _risk_bin(score)
             for path, score in base_score_by_path.items()
         }
-        inspection_observations_by_path = {
-            path: calibrated_inspection_observations(
-                p_catastrophic,
-                delta=inspection_delta,
-            )
-            for path, p_catastrophic in p_catastrophic_by_path.items()
-        }
         return build_tmdp_value_iteration_policy(
             scenario,
             observable_risk_by_path=observable_risk_by_path,
             p_catastrophic_by_path=p_catastrophic_by_path,
-            inspection_observations_by_path=inspection_observations_by_path,
+            inspection_observations_by_path=None,
+        )
+    if policy_name == "observable-threshold-risk":
+        return build_baseline_policy(
+            policy_name,
+            scenario,
+            risk_threshold=risk_threshold,
+            risk_assessor=_NoisyObservableRiskAssessor(
+                scenario_seed=scenario.seed,
+                sigma=risk_noise_sigma,
+            ),
         )
     return build_baseline_policy(policy_name, scenario, risk_threshold=risk_threshold)
+
+
+class _NoisyObservableRiskAssessor:
+    assessor_id = "observable-feature-noisy-v0"
+
+    def __init__(self, *, scenario_seed: int, sigma: float) -> None:
+        self._base = ObservableFeatureRiskAssessor()
+        self._scenario_seed = scenario_seed
+        self._sigma = sigma
+
+    def assess_delete(self, *, scenario: SandboxScenario, path: str):
+        assessment = self._base.assess_delete(scenario=scenario, path=path)
+        try:
+            index = scenario.requested_deletions.index(path)
+        except ValueError:
+            index = 0
+        noisy_score = apply_noise(
+            base_score=assessment.score,
+            seed=self._scenario_seed + index,
+            sigma=self._sigma,
+        )
+        return replace(
+            assessment,
+            assessor_id=self.assessor_id,
+            score=noisy_score,
+            rationale=(
+                f"observable path features produced base score {assessment.score:.3f}; "
+                f"seeded Gaussian noise with sigma={self._sigma:.3f} produced {noisy_score:.3f}"
+            ),
+        )
 
 
 def _risk_bin(score: float) -> RiskBin:
