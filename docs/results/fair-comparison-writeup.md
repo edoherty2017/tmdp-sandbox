@@ -20,7 +20,7 @@ Runtime artifacts:
 
 ## Interpretation
 
-The sigma=0.15 T-MDP advantage over `observable-threshold-risk` is real, but it should be interpreted as threshold derivation rather than superior inference. With `catastrophe_cost=10`, the T-MDP derives an implicit threshold of `0.4545`, while the scripted baseline uses the hand-set threshold `0.5`. Under noise, some risky files land between those thresholds; the T-MDP terminates them while the scripted policy deletes them. The contribution is therefore that the T-MDP framework derives the operating threshold from explicit costs, while the scripted policy requires manual threshold tuning.
+The sigma=0.15 T-MDP point-estimate advantage over `observable-threshold-risk` should be interpreted as threshold derivation rather than superior inference. With `catastrophe_cost=10`, the T-MDP derives an implicit threshold of `0.4545`, while the scripted baseline uses the hand-set threshold `0.5`. Under noise, some risky files land between those thresholds; the T-MDP terminates them while the scripted policy deletes them. The contribution is therefore that the T-MDP framework derives the operating threshold from explicit costs, while the scripted policy requires manual threshold tuning.
 
 The ambiguity sweep is the strongest result. When observable signal quality is high (`ambiguity_level=0.0`, `sigma=0.15`), T-MDP has catastrophe rate `0.010` while `observable-threshold-risk` has catastrophe rate `0.120`. When signal quality is zero (`ambiguity_level=1.0`), both policies degrade to approximately full catastrophe: T-MDP `0.990`, observable threshold `1.000`. This supports the claim that T-MDP can extract more value from a useful risk signal, but cannot rescue a fully uninformative signal.
 
@@ -36,6 +36,23 @@ The oracle threshold baseline should be reported as a safety upper-bound referen
 | 0.00 | tmdp-value-iteration | 0.447 [0.391, 0.503] | 0.500 [0.444, 0.556] | 0.470 [0.414, 0.527] | 15.603 [14.497, 16.710] |
 | 0.15 | observable-threshold-risk | 0.483 [0.427, 0.540] | 0.430 [0.375, 0.487] | 0.543 [0.487, 0.599] | 18.797 [17.447, 20.146] |
 | 0.15 | tmdp-value-iteration | 0.450 [0.395, 0.507] | 0.493 [0.437, 0.550] | 0.477 [0.421, 0.533] | 15.717 [14.611, 16.822] |
+
+The unpaired Wilson intervals for the sigma=0.15 catastrophe rates overlap, so the point-estimate gap should not be interpreted from marginal CIs alone. Because every scenario is run under both policies, the appropriate comparison is paired. A paired McNemar/exact binomial test over the 300 sigma=0.15 matched scenarios gives 20 discordant pairs where `observable-threshold-risk` catastrophes and T-MDP does not, and 0 discordant pairs in the opposite direction (`both catastrophe=143`, `neither catastrophe=137`). The exact two-sided McNemar p-value is `1.91e-06` (continuity-corrected chi-square p=`2.15e-05`), so the catastrophe-rate reduction is statistically significant under the paired design. At sigma=0.0 there are no discordant catastrophe outcomes between these two policies (`p=1.0`).
+
+## Per-ambiguity comparison at sigma=0.15
+
+This breakdown isolates the strongest result: T-MDP reduces catastrophes most when the observable risk signal is informative, and both policies fail when the signal is fully ambiguous.
+
+| ambiguity | policy | catastrophe rate | task completion | unnecessary termination |
+|---:|---|---:|---:|---:|
+| 0.0 | observable-threshold-risk | 0.120 | 0.090 | 0.840 |
+| 0.0 | tmdp-value-iteration | 0.010 | 0.060 | 0.940 |
+| 0.5 | observable-threshold-risk | 0.510 | 0.360 | 0.450 |
+| 0.5 | tmdp-value-iteration | 0.430 | 0.310 | 0.530 |
+| 1.0 | observable-threshold-risk | 1.000 | 1.000 | 0.000 |
+| 1.0 | tmdp-value-iteration | 0.990 | 0.980 | 0.010 |
+
+The low task-completion rate at `ambiguity_level=0.0` is expected under the current per-file sequential adapter. With `benign_count=5` and `trap_rate=0.3`, each generated scenario contains five benign requested deletions and two requested traps, shuffled into a seven-item order. A policy that correctly terminates at the first trap completes all benign work only if all five benign files appear before either trap: `(5/7) x (4/6) x (3/5) x (2/4) x (1/3) = 120/2520 = 0.0476`. The observed ~5% completion rate therefore reflects the random requested-deletion ordering and the adapter's inability to reorder work, not a policy deficiency. A future multi-file/global T-MDP could reason over the remaining file set and potentially complete more benign work before terminating.
 
 ## Unnecessary-termination check
 
