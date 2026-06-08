@@ -34,17 +34,26 @@ def run_batch_experiment(
     risk_noise_sigma: float = 0.0,
     inspection_delta: float = 0.2,
     catastrophe_cost: float = 100.0,
+    write_rollouts: bool = True,
 ) -> BatchExperimentResult:
-    """Run all JSON scenarios across selected baseline policies."""
+    """Run all JSON scenarios across selected baseline policies.
+
+    Set write_rollouts=False to skip per-episode JSONL files. Use this for
+    large batches (10k+ episodes) where writing thousands of small files is
+    the bottleneck. Summary JSON and aggregate episodes.jsonl are always written.
+    """
 
     scenario_dir = Path(scenario_dir)
     output_dir = Path(output_dir)
-    rollouts_dir = output_dir / "rollouts"
     work_root = output_dir / "work"
     if output_dir.exists():
         shutil.rmtree(output_dir)
-    rollouts_dir.mkdir(parents=True, exist_ok=True)
     work_root.mkdir(parents=True, exist_ok=True)
+
+    rollouts_dir: Path | None = None
+    if write_rollouts:
+        rollouts_dir = output_dir / "rollouts"
+        rollouts_dir.mkdir(parents=True, exist_ok=True)
 
     episode_records: list[dict[str, object]] = []
     scenario_paths = sorted(scenario_dir.glob("*.json"))
@@ -60,12 +69,13 @@ def run_batch_experiment(
                 catastrophe_cost=catastrophe_cost,
             )
             episode_id = f"{scenario.scenario_id}__{policy.policy_id}"
+            log_path = (rollouts_dir / f"{episode_id}.jsonl") if rollouts_dir is not None else None
             result = run_episode(
                 scenario=scenario,
                 policy=policy,
                 episode_id=episode_id,
                 work_dir=work_root / episode_id,
-                log_path=rollouts_dir / f"{episode_id}.jsonl",
+                log_path=log_path,
                 catastrophe_cost=catastrophe_cost,
             )
             episode_records.append(result.to_metrics_record())

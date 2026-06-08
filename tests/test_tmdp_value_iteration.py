@@ -99,6 +99,33 @@ def test_inspect_can_be_optimal_when_observation_changes_belief_enough():
     assert greedy_action(policy, high_observation_state) == "TERMINATE"
 
 
+def test_value_iteration_threshold_matches_cost_formula():
+    # Breakeven: p* = (c_terminate - c_delete) / c_catastrophe = (5 - 1) / 10 = 0.4000
+    # p=0.41 > 0.4 → TERMINATE is cheaper (5.0 < 1 + 0.41*10 = 5.1)
+    above = TMDPModel.single_candidate(
+        p_catastrophic=0.41,
+        observable_risk_bin="medium",
+        catastrophe_cost=10.0,
+        termination_cost=5.0,
+        delete_step_cost=1.0,
+        completion_cost=0.0,
+    )
+    _, policy_above = value_iteration(above, tolerance=1e-9)
+    assert greedy_action(policy_above, above.initial_state) == "TERMINATE"
+
+    # p=0.39 < 0.4 → DELETE is cheaper (1 + 0.39*10 = 4.9 < 5.0)
+    below = TMDPModel.single_candidate(
+        p_catastrophic=0.39,
+        observable_risk_bin="medium",
+        catastrophe_cost=10.0,
+        termination_cost=5.0,
+        delete_step_cost=1.0,
+        completion_cost=0.0,
+    )
+    _, policy_below = value_iteration(below, tolerance=1e-9)
+    assert greedy_action(policy_below, below.initial_state) == "DELETE_NEXT"
+
+
 def test_inspect_observations_update_belief_without_revealing_hidden_label():
     # Posteriors calibrated: 0.2*0.0 + 0.3*0.5 + 0.5*0.7 = 0.50 == prior.
     model = TMDPModel.single_candidate(

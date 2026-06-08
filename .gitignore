@@ -5,10 +5,21 @@ __pycache__/
 .venv/
 venv/
 
-# Local experiments / generated data
-runs/
+# Experiment output directories (inside runs/) — keep run scripts
+runs/*/
+runs/*.jsonl
+runs/*.html
+runs/*.xml
+
+# Raw data and trained models — too large for git
+data/
+models/
+
+# Generated HTML galleries (base64-embedded images, 2MB+)
+docs/figures/*.html
+
+# Other generated/local artifacts
 artifacts/
-*.jsonl
 *.sqlite
 *.db
 

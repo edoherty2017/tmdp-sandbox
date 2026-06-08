@@ -9,7 +9,7 @@ Primary fair-comparison batch:
 - Five policies: `no-termination`, `always-terminate`, `threshold-risk` oracle, `observable-threshold-risk`, `tmdp-value-iteration`
 - Generator settings: `benign_count=5`, `trap_rate=0.3`, `protected_decoy_rate=0.25`
 - Fair initial comparison: `catastrophe_cost=10`, `termination_cost=5`, `delete_step_cost=1`
-- T-MDP implicit termination threshold: `5 / (10 + 1) = 0.4545`
+- T-MDP implicit termination threshold: `(5 - 1) / 10 = 0.4000`
 - Scripted observable baseline threshold: `risk_threshold=0.5`
 
 Runtime artifacts:
@@ -73,12 +73,12 @@ Metric semantics: `unnecessary_termination` is true only when the policy volunta
 
 Fixed condition: `ambiguity_level=0.5`, `sigma=0.15`, 100 scenarios, policy=`tmdp-value-iteration`.
 
-| catastrophe_cost | implicit threshold | unnecessary termination | catastrophe rate | voluntary termination | task completion | average cumulative cost |
+| catastrophe_cost | implicit threshold `(5-1)/c` | unnecessary termination | catastrophe rate | voluntary termination | task completion | average cumulative cost |
 |---:|---:|---:|---:|---:|---:|---:|
-| 10 | 0.4545 | 0.530 | 0.430 | 0.820 | 0.310 | 13.450 |
-| 50 | 0.0980 | 0.800 | 0.190 | 0.980 | 0.030 | 18.130 |
-| 100 | 0.0495 | 0.870 | 0.120 | 1.000 | 0.010 | 18.740 |
-| 500 | 0.0100 | 0.890 | 0.100 | 1.000 | 0.010 | 55.570 |
+| 10 | 0.4000 | 0.530 | 0.430 | 0.820 | 0.310 | 13.450 |
+| 50 | 0.0800 | 0.800 | 0.190 | 0.980 | 0.030 | 18.130 |
+| 100 | 0.0400 | 0.870 | 0.120 | 1.000 | 0.010 | 18.740 |
+| 500 | 0.0080 | 0.890 | 0.100 | 1.000 | 0.010 | 55.570 |
 
 This is the central cost-sensitivity result: as catastrophe cost rises, the T-MDP's derived threshold drops, unnecessary termination rises, and catastrophe rate falls. The T-MDP is not merely a fixed conservative rule; its operating point moves systematically with the declared safety-utility tradeoff.
 

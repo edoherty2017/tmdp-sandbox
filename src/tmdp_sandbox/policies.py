@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from .classifier import MLCommandClassifier
+from .context_window import check_baseline_integrity, extract_context_features
+from .event_spec import SecurityScenario
 from .risk import DeleteRiskAssessor, ObservableFeatureRiskAssessor, OracleLabelRiskAssessor
+from .risk_noise import calibrated_inspection_observations
 from .runner import ScriptedPolicy
 from .scenario import SandboxScenario
+from .security_runner import SecurityScriptedPolicy
 from .tmdp_model import RiskBin, TMDPModel
 from .value_iteration import greedy_action, value_iteration
 
@@ -140,5 +145,263 @@ def build_tmdp_value_iteration_policy(
     )
 
 
+def build_security_tmdp_policy(
+    scenario: SecurityScenario,
+    *,
+    classifier: MLCommandClassifier,
+    compromise_cost: float = 100.0,
+    block_cost: float = 5.0,
+    execute_step_cost: float = 1.0,
+    defer_step_cost: float = 0.25,
+    inspection_delta: float = 0.2,
+    risk_noise_sigma: float = 0.0,
+) -> SecurityScriptedPolicy:
+    """Build a Phase 1 + 2 + 3 security policy for one scenario.
+
+    For each requested execution:
+      Phase 1 — extract context window and baseline integrity features
+      Phase 2 — query MLCommandClassifier for P(malicious)
+      Phase 3 — run T-MDP value iteration; emit EXECUTE, BLOCK, or DEFER
+    """
+    from .risk_noise import apply_noise
+
+    outputs: list[str] = []
+    risks: list[float] = []
+
+    for step, event_idx in enumerate(scenario.requested_executions):
+        event = scenario.events[event_idx]
+        p_malicious = classifier.score_event(
+            event, scenario.events, decision_index=event_idx
+        )
+        if risk_noise_sigma > 0.0:
+            p_malicious = apply_noise(
+                base_score=p_malicious,
+                seed=scenario.seed + step,
+                sigma=risk_noise_sigma,
+            )
+
+        observable_risk_bin: RiskBin = _risk_bin(p_malicious)
+        inspection_observations = calibrated_inspection_observations(
+            p_malicious, delta=inspection_delta
+        )
+
+        model = TMDPModel.single_candidate(
+            p_catastrophic=p_malicious,
+            observable_risk_bin=observable_risk_bin,
+            inspection_observations=inspection_observations,
+            catastrophe_cost=compromise_cost,
+            termination_cost=block_cost,
+            delete_step_cost=execute_step_cost,
+            inspect_step_cost=defer_step_cost,
+            completion_cost=0.0,
+        )
+        _, policy = value_iteration(model)
+        action = greedy_action(policy, model.initial_state)
+        risks.append(p_malicious)
+
+        if action == "DELETE_NEXT":
+            outputs.append(f"EXECUTE {event_idx}")
+        elif action == "TERMINATE":
+            outputs.append("BLOCK security-tmdp policy")
+            return SecurityScriptedPolicy(
+                policy_id="security-tmdp-value-iteration",
+                outputs=tuple(outputs),
+                risk_estimates=tuple(risks),
+            )
+        else:  # INSPECT_NEXT → DEFER
+            outputs.append(f"DEFER {event_idx}")
+
+    return SecurityScriptedPolicy(
+        policy_id="security-tmdp-value-iteration",
+        outputs=tuple(outputs) if outputs else ("BLOCK security-tmdp no events",),
+        risk_estimates=tuple(risks) if risks else (0.0,),
+    )
+
+
+def build_security_threshold_policy(
+    scenario: SecurityScenario,
+    *,
+    classifier: MLCommandClassifier,
+    block_threshold: float = 0.5,
+    risk_noise_sigma: float = 0.0,
+) -> SecurityScriptedPolicy:
+    """Scripted threshold baseline: block on first event exceeding threshold."""
+    from .risk_noise import apply_noise
+
+    outputs: list[str] = []
+    risks: list[float] = []
+
+    for step, event_idx in enumerate(scenario.requested_executions):
+        event = scenario.events[event_idx]
+        p_malicious = classifier.score_event(
+            event, scenario.events, decision_index=event_idx
+        )
+        if risk_noise_sigma > 0.0:
+            p_malicious = apply_noise(
+                base_score=p_malicious,
+                seed=scenario.seed + step,
+                sigma=risk_noise_sigma,
+            )
+        risks.append(p_malicious)
+        if p_malicious > block_threshold:
+            outputs.append("BLOCK threshold exceeded")
+            return SecurityScriptedPolicy(
+                policy_id="security-threshold",
+                outputs=tuple(outputs),
+                risk_estimates=tuple(risks),
+            )
+        outputs.append(f"EXECUTE {event_idx}")
+
+    outputs.append("BLOCK threshold cleanup complete")
+    risks.append(0.0)
+    return SecurityScriptedPolicy(
+        policy_id="security-threshold",
+        outputs=tuple(outputs),
+        risk_estimates=tuple(risks),
+    )
+
+
+def build_security_sequential_policy(
+    scenario: SecurityScenario,
+    *,
+    classifier: MLCommandClassifier,
+    compromise_cost: float = 100.0,
+    block_cost: float = 5.0,
+    execute_step_cost: float = 1.0,
+    defer_step_cost: float = 0.25,
+    inspection_delta: float = 0.2,
+    risk_noise_sigma: float = 0.0,
+) -> SecurityScriptedPolicy:
+    """Sequential block policy: BLOCK_EVENT per suspicious event, episode never stops early.
+
+    Identical T-MDP value iteration per event, but when the T-MDP chooses TERMINATE,
+    the policy emits BLOCK_EVENT (blocks this one event, continues) rather than BLOCK
+    (which terminates the entire episode). This lets benign events after a malicious
+    detection still execute, improving benign_allow_rate at no safety cost.
+    """
+    from .risk_noise import apply_noise
+
+    outputs: list[str] = []
+    risks: list[float] = []
+
+    for step, event_idx in enumerate(scenario.requested_executions):
+        event = scenario.events[event_idx]
+        p_malicious = classifier.score_event(
+            event, scenario.events, decision_index=event_idx
+        )
+        if risk_noise_sigma > 0.0:
+            p_malicious = apply_noise(
+                base_score=p_malicious,
+                seed=scenario.seed + step,
+                sigma=risk_noise_sigma,
+            )
+
+        observable_risk_bin: RiskBin = _risk_bin(p_malicious)
+        inspection_observations = calibrated_inspection_observations(
+            p_malicious, delta=inspection_delta
+        )
+
+        model = TMDPModel.single_candidate(
+            p_catastrophic=p_malicious,
+            observable_risk_bin=observable_risk_bin,
+            inspection_observations=inspection_observations,
+            catastrophe_cost=compromise_cost,
+            termination_cost=block_cost,
+            delete_step_cost=execute_step_cost,
+            inspect_step_cost=defer_step_cost,
+            completion_cost=0.0,
+        )
+        _, policy = value_iteration(model)
+        action = greedy_action(policy, model.initial_state)
+        risks.append(p_malicious)
+
+        if action == "DELETE_NEXT":
+            outputs.append(f"EXECUTE {event_idx}")
+        elif action == "TERMINATE":
+            outputs.append(f"BLOCK_EVENT {event_idx}")  # block this event, continue
+        else:  # INSPECT_NEXT → DEFER
+            outputs.append(f"DEFER {event_idx}")
+
+    return SecurityScriptedPolicy(
+        policy_id="security-tmdp-sequential",
+        outputs=tuple(outputs) if outputs else ("BLOCK_EVENT 0",),
+        risk_estimates=tuple(risks) if risks else (0.0,),
+    )
+
+
+def build_security_tmdp_no_defer_policy(
+    scenario: SecurityScenario,
+    *,
+    classifier: MLCommandClassifier,
+    compromise_cost: float = 100.0,
+    block_cost: float = 5.0,
+    execute_step_cost: float = 1.0,
+    risk_noise_sigma: float = 0.0,
+) -> SecurityScriptedPolicy:
+    """T-MDP policy that treats INSPECT_NEXT as BLOCK (no human-deferral available).
+
+    Identical to build_security_tmdp_policy except that degenerate inspection
+    observations are passed so value iteration never chooses INSPECT_NEXT.
+    Comparing this against build_security_tmdp_policy isolates the value of DEFER.
+    """
+    from .risk_noise import apply_noise
+
+    outputs: list[str] = []
+    risks: list[float] = []
+
+    for step, event_idx in enumerate(scenario.requested_executions):
+        event = scenario.events[event_idx]
+        p_malicious = classifier.score_event(
+            event, scenario.events, decision_index=event_idx
+        )
+        if risk_noise_sigma > 0.0:
+            p_malicious = apply_noise(
+                base_score=p_malicious,
+                seed=scenario.seed + step,
+                sigma=risk_noise_sigma,
+            )
+
+        observable_risk_bin: RiskBin = _risk_bin(p_malicious)
+        # Degenerate observations → inspection gives no information → VI never defers
+        model = TMDPModel.single_candidate(
+            p_catastrophic=p_malicious,
+            observable_risk_bin=observable_risk_bin,
+            inspection_observations=None,
+            catastrophe_cost=compromise_cost,
+            termination_cost=block_cost,
+            delete_step_cost=execute_step_cost,
+            inspect_step_cost=0.25,
+            completion_cost=0.0,
+        )
+        _, policy = value_iteration(model)
+        action = greedy_action(policy, model.initial_state)
+        risks.append(p_malicious)
+
+        if action == "DELETE_NEXT":
+            outputs.append(f"EXECUTE {event_idx}")
+        else:
+            outputs.append("BLOCK security-tmdp-nodefer policy")
+            return SecurityScriptedPolicy(
+                policy_id="security-tmdp-nodefer",
+                outputs=tuple(outputs),
+                risk_estimates=tuple(risks),
+            )
+
+    return SecurityScriptedPolicy(
+        policy_id="security-tmdp-nodefer",
+        outputs=tuple(outputs) if outputs else ("BLOCK security-tmdp-nodefer no events",),
+        risk_estimates=tuple(risks) if risks else (0.0,),
+    )
+
+
 def _risk_score(risk_bin: RiskBin) -> float:
     return {"low": 0.1, "medium": 0.5, "high": 0.9}[risk_bin]
+
+
+def _risk_bin(p: float) -> RiskBin:
+    """Map a probability to the nearest RiskBin label."""
+    if p < 0.35:
+        return "low"
+    if p < 0.65:
+        return "medium"
+    return "high"

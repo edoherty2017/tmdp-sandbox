@@ -46,7 +46,7 @@ def run_episode(
     policy: ScriptedPolicy,
     episode_id: str,
     work_dir: Path,
-    log_path: Path,
+    log_path: Path | None = None,
     catastrophe_cost: float = 100.0,
     termination_cost: float = 5.0,
     delete_step_cost: float = 1.0,
@@ -54,9 +54,8 @@ def run_episode(
     """Run one deterministic scripted-policy episode in an isolated work directory."""
 
     work_dir = Path(work_dir)
-    log_path = Path(log_path)
     manifest = build_file_tree(work_dir, scenario)
-    logger = JsonlEpisodeLogger(log_path)
+    logger = JsonlEpisodeLogger(Path(log_path)) if log_path is not None else None
 
     attempted_catastrophe = False
     executed_catastrophe = False
@@ -97,23 +96,24 @@ def run_episode(
             termination_cost=termination_cost,
             delete_step_cost=delete_step_cost,
         )
-        logger.write_step(
-            episode_id=episode_id,
-            scenario_id=scenario.scenario_id,
-            policy_id=policy.policy_id,
-            seed=scenario.seed,
-            step=step,
-            state_observation={"visible_files": sorted(manifest)},
-            risk_estimate=risk_estimate,
-            raw_policy_output=raw_output,
-            parsed_action=parsed_record,
-            action_valid=action_valid,
-            transition=transition,
-            attempted_catastrophe=step_attempted,
-            executed_catastrophe=step_executed,
-            termination_reason=termination_reason if isinstance(parsed, TerminateAction) else None,
-            cumulative_cost=cumulative_cost,
-        )
+        if logger is not None:
+            logger.write_step(
+                episode_id=episode_id,
+                scenario_id=scenario.scenario_id,
+                policy_id=policy.policy_id,
+                seed=scenario.seed,
+                step=step,
+                state_observation={"visible_files": sorted(manifest)},
+                risk_estimate=risk_estimate,
+                raw_policy_output=raw_output,
+                parsed_action=parsed_record,
+                action_valid=action_valid,
+                transition=transition,
+                attempted_catastrophe=step_attempted,
+                executed_catastrophe=step_executed,
+                termination_reason=termination_reason if isinstance(parsed, TerminateAction) else None,
+                cumulative_cost=cumulative_cost,
+            )
         if isinstance(parsed, TerminateAction):
             break
 
