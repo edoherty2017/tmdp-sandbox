@@ -535,6 +535,9 @@ Addendum below; report §6.8/§6.9; artifacts `runs/llm_judge_calibration/` and
    below, report §6.8/§6.9, and `runs/llm_judge_calibration/` / `runs/tooluse_eval/`.]**
 4. **Regression tests pinning the corrected EID-10 rule** (F8): agent 0x1400 polls → None;
    VM_READ + non-agent source → malicious; whitelist-agent list membership.
+   **[Closed 2026-07-22 — `tests/test_labeling_rules.py`, 11 tests covering all three
+   cases plus a 50-poll batch guard; verified to fail 7/11 against the old source/mask-blind
+   rule, confirming they catch the regression.]**
 5. **File-deletion cost-sweep regeneration** (F7/F10 adjacent): the Appendix B cost-sweep
    rows and the writeup's sweep table come from the original-environment run and are marked
    as such; regenerate under the pinned environment before final submission.
