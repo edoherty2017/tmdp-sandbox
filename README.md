@@ -6,22 +6,48 @@ process-creation records are post-execution artifacts used as a proxy for the fe
 pre-execution enforcement hook would observe — nothing here executes or prevents live commands.
 
 > [!IMPORTANT]
-> ## 📣 TEAM: READ THIS FIRST — Post-review status (2026-07-21)
+> ## 📣 ANNOUNCEMENT (2026-07-22): review remediation complete — what was broken, what we fixed
 >
-> **What happened:** A 22-agent adversarial review of the draft upheld **15 findings**
-> (`docs/review/2026-07-21-adversarial-review-findings.md`). All code and label fixes from the
-> consolidated fix plan (`docs/review/2026-07-21-fix-plan.md`) are applied: exact binomial
-> McNemar with Holm correction, tightened T1047 and credential-access ground-truth rules, a
-> source- and mask-aware EID-10 training-label rule (the review found 438/618 = 70.9% of the
-> original malicious training labels were VBoxService Guest Additions housekeeping polls; the
-> corrected rule shrinks the malicious training pool **618 → 144**), real k=10 context windows
-> in the flagship eval (the old eval scored every event with empty context), a new
-> threshold-0.5-sequential control arm, a new hard-benign FP eval, and a pinned environment
-> (**Python 3.14.3, scikit-learn 1.9.0, numpy 2.5.1, pandas 3.0.3, joblib 1.5.3**). **All
-> experiments were regenerated from scratch** in that environment, and the report was rewritten
-> from the regenerated artifacts. Every number below comes from those artifacts.
+> The 2026-07-21 adversarial review upheld **15 findings** against the draft
+> (`docs/review/2026-07-21-adversarial-review-findings.md`). Every required fix is now applied,
+> every experiment regenerated, and the report rewritten. Per-finding responses:
+> `docs/review/2026-07-21-fix-response.md`.
 >
-> **What changed most (old draft → regenerated):**
+> **What was broken:**
+> 1. **Circular labels** — training labels were a deterministic function of the classifier's
+>    own features, so CV F1 and the calibration story measured self-agreement, not skill.
+> 2. **Mislabeled data** — 438/618 (70.9%) of "malicious" training events were VirtualBox
+>    housekeeping polls; ~70% of eval "attacks" matched the bare substring `'wmi'` in routine
+>    WmiPrvSE boilerplate.
+> 3. **Rigged benign set** — eval label rules only ever called whitelist processes benign and
+>    silently excluded ~98% of events, so precision=1.000 was guaranteed by construction; the
+>    model agreed with a 21-process whitelist rule on every single event.
+> 4. **Broken statistics** — McNemar p-values used a wrong formula (2-df tail for a 1-df test);
+>    no CIs; a headline Wilcoxon p on a by-construction effect; the flagship eval scored every
+>    event with an *empty* context window.
+> 5. **Irreproducible** — unpinned library versions, no committed artifacts, and report tables
+>    (McNemar b-column, DEFER count, calibration bins) that did not match the repo's own outputs.
+> 6. **Oversold framing** — offline log replay presented as live "catastrophic action
+>    prevention"; the T-MDP's planning cost was back-derived to hit p*=0.40.
+>
+> **What we fixed:**
+> - **Labels**: source- and mask-aware EID-10 rule (requires `PROCESS_VM_READ` + non-agent
+>   source; malicious training pool 618 → **144**); T1047 rule requires real WMI-exec tokens;
+>   agent polls now labeled benign so model FPs are *counted*, not hidden.
+> - **Eval harness**: real k=10 context windows; trivial baselines (whitelist rules,
+>   always-malicious) reported side-by-side; Wilson + cluster-bootstrap CIs; exclusion funnel
+>   disclosed; new hard-benign FP eval (152 hand-authored admin commands); new
+>   threshold-0.5-sequential control arm.
+> - **Statistics**: exact binomial McNemar with Holm correction; exact sign test replacing the
+>   Wilcoxon; structural (subset-property) effects labeled as such, not tested as discoveries.
+> - **Reproducibility**: exact library versions pinned in `pyproject.toml` and stamped into
+>   every results JSON; small run artifacts committed; all tables regenerated from one artifact
+>   vintage (Python 3.14.3, scikit-learn 1.9.0, numpy 2.5.1, pandas 3.0.3, joblib 1.5.3).
+> - **Reporting**: report and README rewritten from the regenerated artifacts; every defect
+>   above is disclosed in the report body and §7.5, in the same voice as the existing §6.7.1
+>   retraction; framing rescoped to offline replay.
+>
+> **What the honest numbers look like (old draft → regenerated):**
 >
 > | Quantity | Old draft (pre-fix pipeline) | Regenerated (pinned env) |
 > |---|---|---|
@@ -183,6 +209,7 @@ attributed to the pre-fix pipeline.
 | `docs/cs5100-practical-report-draft.md` | Main report (rewritten 2026-07-21 from the regenerated artifacts) |
 | `docs/review/2026-07-21-adversarial-review-findings.md` | Adversarial review — the 15 upheld findings (F1–F15) |
 | `docs/review/2026-07-21-fix-plan.md` | Consolidated fix/edit spec responding to the review |
+| `docs/review/2026-07-21-fix-response.md` | Per-finding written responses (F1–F15): what was fixed, rebutted, and still open |
 | `SandBox Project.docx` (repo root; also `docs/source/`) | Original team proposal — proposal-of-record for the LLM-judge / LangChain decision items |
 | `docs/cs5100-proposal.md` | Course proposal (submitted 2026-06-21, post-pivot) |
 | `docs/results/fair-comparison-writeup.md` | File-deletion domain validation (McNemar, cost sweep) |

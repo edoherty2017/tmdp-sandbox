@@ -7,7 +7,9 @@ Methodological guarantees (and their limits):
      defends ONLY against post-hoc label edits and test-set iteration — it does
      NOT make the labels independent of the Phase 1 feature lists.
      label_by_technique shares process/EID vocabulary with those lists: every
-     benign clause is a baseline-whitelist membership test, and several
+     technique-specific benign clause is a baseline-whitelist membership test
+     (the agent-poll guard additionally labels vboxservice.exe/msmpeng.exe
+     polls benign), and several
      malicious rules key on _SUSPICIOUS_PROCESSES members (net.exe, wmic.exe,
      wscript.exe, schtasks.exe) or on EID 4698, which the classifier
      hard-scores 0.99. Precision on this corpus therefore measures rule
@@ -423,7 +425,8 @@ def compute_metrics(scored: list[dict]) -> dict:
 # STEP 4 — Trivial baselines, uncertainty, reproducibility metadata
 # ---------------------------------------------------------------------------
 
-# The only processes any benign label clause ever accepts.
+# The only processes any technique-specific benign clause accepts (the
+# agent-poll guard additionally labels vboxservice.exe/msmpeng.exe benign).
 _THREE_PROCESS_WHITELIST = ("svchost.exe", "explorer.exe", "runtimebroker.exe")
 
 
