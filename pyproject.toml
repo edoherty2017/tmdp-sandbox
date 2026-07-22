@@ -12,6 +12,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=9.0"]
+# Tool-use agent leg (proposal §2): LangChain framework. langchain-core is the
+# framework layer the agent/gate code imports directly; the langchain meta
+# package is pinned for the agent-loop abstractions. Versions are the exact ones
+# that resolve in the project's Python 3.14 environment.
+llm = [
+    "langchain-core==1.5.0",
+    "langchain==1.3.14",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

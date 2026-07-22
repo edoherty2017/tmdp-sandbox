@@ -72,24 +72,45 @@ pre-execution enforcement hook would observe — nothing here executes or preven
 > the final report, due Aug 9** — now rewritten from the regenerated artifacts; needs a full
 > team read-through.
 >
-> **⚠️ Three things we still need to decide together** (unchanged by the review — still open).
-> For items 1 and 3, the proposal-of-record is **`SandBox Project.docx`** (repo root; extracted
+> **Added 2026-07-22 (same day, after the remediation):** two new measured experiments close the
+> proposal-of-record gaps — LLM-judge calibration (`runs/llm_judge_calibration/`) and a
+> LangChain tool-use agent leg (`runs/tooluse_eval/`); results below and in "Current results".
+>
+> **⚠️ The three proposal-gap items** — items 1 and 3 are now **built and measured**; what is
+> left to decide together is *presentation in the report*, not construction. The
+> proposal-of-record is **`SandBox Project.docx`** (repo root; extracted
 > text at `docs/source/SandBox_Project_extracted.md`, whose line 43 specifies a risk module that
 > "features an LLM judge as the simplest instance", and which names LangChain) — not
 > `docs/cs5100-proposal.md`:
-> 1. That proposal specifies the risk judge as a rule-based scorer **combined with an LLM
->    judge**; the implementation uses only the calibrated classifier, and the report defends
->    dropping the LLM. We either add an LLM-judge experiment or present the substitution as a
->    deliberate design decision.
-> 2. The tool-use/reasoning-agent leg (Risky-Bench / SafeToolBench) isn't implemented —
->    everything is on the cybersecurity command-line leg.
-> 3. That proposal names LangChain as the framework; the report argues against it. Same
->    decision as #1.
+> 1. **LLM judge — built and measured** (`runs/llm_judge_calibration/`). The measurement
+>    *reverses* §4.5's asserted rationale ("LLM confidence numbers are not calibrated"): on
+>    every non-circular subset the LLM judge is **better** calibrated than the deployed
+>    classifier (matched overall ECE 0.0663 vs 0.3447; hard-benign FP at p\*=0.40: 5.3% vs
+>    100%). §4.5 must be rewritten, not defended — the honest remaining grounds for the
+>    classifier-only deployment are operational (per-event latency/cost, sampling
+>    nondeterminism, a 0.55% refusal/parse-failure rate, model-snapshot dependence), not
+>    calibration. Open decision: how to present the revision.
+> 2. **Tool-use agent leg — now exists as a sandboxed LangChain demo** (`runs/tooluse_eval/`):
+>    the proposal's full gate pipeline (rule scorer + LLM judge → T-MDP p\*=0.40 →
+>    PROCEED/STOP/DEFER) on 40 hand-authored SafeToolBench-*style* scenarios plus 5 live agent
+>    transcripts; combined scorer executes 0/20 risky and blocks 0/20 safe (rule-only: 4
+>    missed, 3 over-blocked). What remains vs the real benchmarks: no verbatim
+>    Risky-Bench/SafeToolBench items (scenario text is our own; only the SafeToolBench
+>    abstract/figure was reachable at run time), n=40, and the agent-demo pending actions are
+>    seeded (the CLI planner refuses risky plans upstream) — a demonstration on a constructed
+>    suite, not a benchmark result.
+> 3. **LangChain — built and measured**: the tool-use leg runs on LangChain (langchain 1.3.14 /
+>    langchain-core 1.5.0, pinned in `pyproject.toml` `[llm]` extra) with a custom chat model
+>    over the claude CLI and an explicit message/tool loop keeping the gate between "model
+>    proposes" and "tool runs". Same open decision as #1: presentation, not construction.
 >
 > **To reproduce:** clone, install the pinned environment (`pip install -e '.[dev]'` —
-> `pyproject.toml` pins exact versions), `pytest` (**118/118 tests passing**, no data needed;
-> verified by the review on a fresh clone). Experiment scripts need the OTRF ZIPs in
+> `pyproject.toml` pins exact versions), `pytest` (**151 tests**, no data needed — the previous
+> 118 were verified by the review on a fresh clone; 33 LLM-judge/tool-use tests added
+> 2026-07-22). Experiment scripts need the OTRF ZIPs in
 > `data/raw/` — lists in `runs/train_classifier.py` and `runs/run_large_independent_eval.py`.
+> The two LLM experiments additionally need an authenticated `claude` CLI (see "Reproducing
+> results").
 
 ---
 
@@ -127,7 +148,8 @@ recorded order and its BLOCK decisions are simulated, never enforced.
 
 All numbers below are from the regenerated artifacts under `runs/` and
 `data/processed/train_stats.json`. Old-draft numbers appear only in the banner table above,
-attributed to the pre-fix pipeline.
+attributed to the pre-fix pipeline. The LLM-judge calibration and tool-use blocks were added
+2026-07-22 from that day's run artifacts.
 
 **Classifier (Phase 2)**
 - Corpus: 11,935 events — 11,791 benign / 144 malicious (≈1.2% prevalence) after the
@@ -200,7 +222,60 @@ attributed to the pre-fix pipeline.
   498 episodes (mal-exec 0.002, vs 0.000 for tmdp-sequential). The architectural gain is
   decision-layer-agnostic; the T-MDP's contribution is keeping mal-exec at zero.
 
-**Tests**: 118 passing
+**LLM-judge calibration (new 2026-07-22, `runs/llm_judge_calibration/`)**
+- `claude-opus-4-8` via the claude CLI (2.1.217) scored 542 events with real k=10 context
+  windows — 240 train-pool (120 malicious / 120 benign, `auto_label_event` labels), 152
+  hard-benign, 150 stratified eval-holdout — head-to-head against the deployed classifier
+  under the same 10-bin reliability scheme as `run_calibration_eval.py`. This converts §4.5's
+  asserted justification ("LLM confidence numbers are not calibrated") into a measured result.
+- **The assertion is reversed by measurement.** Strict matched head-to-head (n=539; the 3 LLM
+  refusals/unparseables excluded, never fabricated): overall ECE 0.0663 vs 0.3447 and Brier
+  0.1101 vs 0.2884 in the judge's favor; hard-benign ECE 0.1282 vs 0.9203; eval-holdout ECE
+  0.0790 vs 0.3498. The classifier "wins" only on train_pool (ECE 0.0005 vs 0.1993) — the one
+  subset whose labels are circular for the classifier, where its score histogram is a
+  degenerate 0/1 spike (120 / 0×8 / 120); that row is not evidence of classifier calibration.
+- Hard-benign FP at p\*=0.40: judge 8/151 = 5.3% (Wilson 95% CI 2.7–10.1%) vs classifier
+  152/152 = 100%; at 0.50: 1/151 = 0.7% vs 142/152 = 93.4%. No hard-benign event received an
+  LLM score ≥ 0.6. (Hand-authored set — not a deployment FP-rate estimate.)
+- Graded scores: the judge places 169/539 (31.4%) of events in the (0.1–0.9) desert, spread
+  across all eight middle bins with actual rates rising near-monotonically with predicted
+  score; the classifier's nominally similar 31.7% is mostly a single uninformative spike at
+  [0.4–0.5) (140 events, actual rate 0.0286).
+- Caveats: single-pass scoring, one model snapshot on one date; the judge's weakest region is
+  the low-score train_pool bins ([0.1–0.2): predicted 0.1200 vs actual 0.6176 — judge misses
+  or `auto_label_event` label noise, unresolvable from this artifact); 3/542 (0.55%)
+  refusals/parse failures, all on benign events. Consequence for §4.5: the case for excluding
+  the LLM judge cannot rest on calibration — the honest remaining grounds are operational
+  (per-event latency/cost at telemetry rates, sampling nondeterminism, a refusal fallback
+  path, model-snapshot dependence).
+
+**Tool-use agent leg (new 2026-07-22, `runs/tooluse_eval/`)**
+- LangChain agent (langchain 1.3.14 / langchain-core 1.5.0; custom chat model over the claude
+  CLI; sandboxed mock tools, no real side effects) with the proposal's full gate pipeline:
+  rule-based scorer + LLM judge (combined = 0.4·rule + 0.6·llm) → existing T-MDP value
+  iteration (p\*=0.40) → PROCEED / STOP / DEFER.
+- Gate eval on 40 hand-authored SafeToolBench-style scenarios (20 risky / 20 safe; unseeded):
+  the combined scorer at T-MDP p\*=0.40 executes **0/20 risky and blocks 0/20 safe** (Wilson
+  95% CI 0–16.1% each side); rule-only executes 4/20 risky and blocks 3/20 safe — in all 7
+  rule-only failures the LLM judge scored correctly and the combined score rescued the
+  decision. Judge calibration on scenario ground truth: ECE 0.0492, Brier 0.0044 (n=40, six
+  empty middle bins — indicative only).
+- **No T-MDP-beats-threshold claim on this suite:** scenario scores are bimodal, so tmdp-p0.40
+  and threshold-0.5 make identical gate decisions under every scorer. T-MDP-specific behavior
+  appears only in the defer variant (3 safe DEFERs, 0 risky, combined scorer) and in the
+  value-iteration provenance of p\*.
+- 5 live end-to-end agent transcripts with the gate live: 2/2 risky STOPped (incl. EXFIL-1,
+  which the rule scorer alone would pass at 0.05) and 3/3 safe PROCEEDed (incl. DEL-L1, which
+  the rule scorer alone would block at 0.85); all five ended in a final answer.
+- Caveats: authored scenarios, not deployment traffic and not verbatim SafeToolBench items
+  (only the paper's abstract/figure was reachable at run time; style reference: Xia et al.,
+  Findings of EMNLP 2025) — rates characterize the gate on this constructed set only. The
+  demo's pending actions are **seeded**: the CLI planner by design refuses to volunteer risky
+  tool-call plans (itself a valid first line of defense), so the harness supplies each
+  scenario's canonical action; the gate decisions, scores, and the model's follow-up reactions
+  are real, and the 40-scenario gate eval is unseeded.
+
+**Tests**: 151 passing
 
 ## Key documents
 
@@ -229,6 +304,8 @@ attributed to the pre-fix pipeline.
 | `src/tmdp_sandbox/security_runner.py` | Security episode runner |
 | `src/tmdp_sandbox/event_spec.py` | `EventSpec`, `SecurityScenario` types |
 | `src/tmdp_sandbox/risk_noise.py` | Seeded noise model |
+| `src/tmdp_sandbox/llm_judge.py` | LLM judge: event/tool-call scoring via the local `claude` CLI (JSON-prompted; on-disk response cache; refusals recorded as None, never fabricated) |
+| `src/tmdp_sandbox/tooluse_agent.py` | Tool-use leg: LangChain agent (`ClaudeCLIChatModel`, mock tools) + `SafetyGate` (rule + LLM → T-MDP) |
 
 ## Run scripts
 
@@ -243,21 +320,39 @@ attributed to the pre-fix pipeline.
 | `runs/run_large_independent_eval.py` | Large independent evaluation (labels-first protocol, real k=10 context) |
 | `runs/run_fair_batch.py` | File-deletion domain fair comparison (paired episodes) |
 | `runs/run_hard_benign_eval.py` | Hard-benign FP eval (152 hand-authored admin events) |
+| `runs/run_llm_judge_calibration.py` | LLM-judge vs classifier calibration head-to-head (542 events; requires authenticated `claude` CLI) |
+| `runs/run_tooluse_eval.py` | Tool-use leg: 40-scenario gate eval + 5 LangChain agent demos (requires authenticated `claude` CLI) |
 | `runs/generate_figures.py` | Generate all 5 publication figures → `docs/figures/` |
+
+The two LLM scripts shell out to the local `claude` CLI (`claude-opus-4-8`; no API key). Model
+responses are cached in each run directory (`responses.jsonl`, keyed by sha256 of
+model+prompt; the calibration run also stores the exact prompts in `prompts.jsonl`), so reruns
+replay identical prompts from cache without new model calls and interrupted runs resume.
 
 ## Reproducing results
 
 All results were produced in the pinned environment (Python 3.14.3, scikit-learn 1.9.0,
 numpy 2.5.1, pandas 3.0.3, joblib 1.5.3 — pinned in `pyproject.toml`); borderline-count
-metrics (McNemar b, DEFER counts) are not stable across library versions.
+metrics (McNemar b, DEFER counts) are not stable across library versions. The tool-use leg
+additionally pins langchain-core 1.5.0 / langchain 1.3.14 (`pip install -e '.[llm]'`).
+
+The two LLM experiments require an **authenticated `claude` CLI** on PATH (results were
+produced with CLI 2.1.217, model `claude-opus-4-8`, on 2026-07-22). With the response caches
+in the run directories, reruns of identical prompts replay from cache; fresh scoring of new
+prompts is a different model snapshot and may differ. Both scripts take `--limit N` for a
+small smoke run.
 
 ```bash
-python3 -m pytest -q                           # 118 tests
+python3 -m pytest -q                           # 151 tests
 python3 runs/train_classifier.py               # train classifier (needs data/raw/malicious/)
 python3 runs/run_security_batch.py             # batch experiment → runs/security_batch/
 python3 runs/run_large_independent_eval.py     # large eval → runs/large_independent_eval/
                                                # (needs data/raw/eval_holdout/ ZIPs)
 python3 runs/run_hard_benign_eval.py           # hard-benign FP eval → runs/hard_benign_eval/
+python3 runs/run_llm_judge_calibration.py      # LLM-judge calibration → runs/llm_judge_calibration/
+                                               # (claude CLI + trained model + data/raw ZIPs; --limit N to smoke)
+python3 runs/run_tooluse_eval.py               # tool-use agent leg → runs/tooluse_eval/
+                                               # (claude CLI only, scenarios are in-repo; --limit N to smoke)
 python3 runs/generate_figures.py               # figures → docs/figures/*.png
 ```
 

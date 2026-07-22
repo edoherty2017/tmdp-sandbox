@@ -514,6 +514,10 @@ whitelist-baseline and single-lab caveats.
 proposal requirement and stays an open decision item for the team, now correctly sourced
 to 'SandBox Project.docx'.
 
+*[Update 2026-07-22: closed. Both legs are now implemented and measured — see the
+Addendum below; report §6.8/§6.9; artifacts `runs/llm_judge_calibration/` and
+`runs/tooluse_eval/`.]*
+
 ---
 
 ## Consolidated open items
@@ -526,7 +530,9 @@ to 'SandBox Project.docx'.
    sequential architecture, where its benefit is no longer confounded with episode
    continuation.
 3. **LLM-judge leg** (F15): the proposal's risk-assessment module ('SandBox Project.docx')
-   remains unbuilt; team decision pending.
+   remains unbuilt; team decision pending. **[Closed 2026-07-22 — both the LLM-judge
+   calibration leg and the LangChain tool-use agent leg have been run; see the Addendum
+   below, report §6.8/§6.9, and `runs/llm_judge_calibration/` / `runs/tooluse_eval/`.]**
 4. **Regression tests pinning the corrected EID-10 rule** (F8): agent 0x1400 polls → None;
    VM_READ + non-agent source → malicious; whitelist-agent list membership.
 5. **File-deletion cost-sweep regeneration** (F7/F10 adjacent): the Appendix B cost-sweep
@@ -534,3 +540,69 @@ to 'SandBox Project.docx'.
    as such; regenerate under the pinned environment before final submission.
 6. **Group-wise / deduplicated CV** (F2): optional, since CV is no longer cited as
    evidence, but would complete the disclosure.
+
+---
+
+## Addendum (2026-07-22): LLM-judge and tool-use legs closed
+
+Two experiments run on 2026-07-22 close consolidated open item 3 and the F15(e)
+unimplemented-leg item: the proposal-of-record's LLM judge, LangChain, and tool-use agent
+requirements ('SandBox Project.docx') now all have measured legs. All numbers below come
+from `runs/llm_judge_calibration/` and `runs/tooluse_eval/` (`results.json` /
+`summary.txt`, versions recorded in-artifact); the corresponding report sections are the
+new §6.8 and §6.9.
+
+**LLM-judge calibration (`runs/llm_judge_calibration/`, report §6.8).** `claude-opus-4-8`
+(via the Claude Code CLI 2.1.217, seed 42) scored 542 events with their real k=10 context
+windows — 240 train-pool (120 malicious / 120 benign), 152 hard-benign, and 150
+stratified large-eval holdout — head-to-head against the deployed classifier under the
+same 10-bin reliability/ECE/MCE/Brier machinery as §6.5. The result **reverses §4.5's
+asserted justification** ("LLM confidence numbers are not calibrated"), and §4.5 is
+revised accordingly rather than defended: on the strict matched head-to-head the judge is
+better calibrated everywhere the labels are non-circular — overall ECE 0.0663 vs 0.3447
+and Brier 0.1101 vs 0.2884 (n=539); hard-benign ECE 0.1282 vs 0.9203; eval-holdout ECE
+0.0790 vs 0.3498. On the hard-benign corpus the judge false-positives 8/151 (5.3%, Wilson
+2.71–10.11%) at p*=0.40 where the classifier flags 152/152 (100%), and it populates the
+0.1–0.9 score desert with graded, near-monotonic mass (169/539 = 31.4%, spread across all
+eight middle bins; the classifier's nominally similar 31.7% is almost entirely one
+uninformative spike of 140 events in [0.4–0.5), actual rate 0.0286). The report carries
+the caveats without softening: the classifier "wins" only on the train pool, whose
+auto-labels are circular for it (degenerate ECE 0.0005, 0/1 histogram — not cited as
+evidence of calibration); the judge's worst region is the train-pool [0.1–0.2) bin
+(predicted 0.1200 vs actual 0.6176 over 34 events, gap 0.4976 — judge misses or
+auto-label noise, unresolvable from this artifact); 3/542 events (0.55%, all benign)
+returned refusal/parse nulls and are excluded, never fabricated; single-pass scoring on
+one model snapshot. The honest residual grounds for the deployed rule+classifier design
+are operational (per-event latency/cost, nondeterminism, the refusal fallback path,
+snapshot dependence), not calibration.
+
+**Tool-use agent leg (`runs/tooluse_eval/`, report §6.9).** A LangChain agent (langchain
+1.3.14 / langchain-core 1.5.0; custom chat model over the claude CLI; sandboxed mock
+tools) runs the proposal's full gate pipeline — rule scorer + LLM judge combined as
+0.4·rule + 0.6·llm, fed into the existing T-MDP value iteration (c_compromise=10,
+c_block=5, c_execute=1 → p*=0.40) producing PROCEED/STOP/DEFER — evaluated on 40
+hand-authored SafeToolBench-style scenarios (20 risky / 20 safe, five categories) across
+scorers and policies, plus 5 live end-to-end agent demo transcripts. Under the T-MDP gate
+the combined scorer executes 0/20 risky and blocks 0/20 safe scenarios (Wilson 0–16.11%
+each side), versus rule-only's 4/20 risky executed and 3/20 safe blocked; in all 7
+rule-only failures the judge scored correctly and the combined score rescued the
+decision. Three disclosures the report states plainly: T-MDP at p*=0.40 and the
+0.5-threshold baseline produce **identical** gate rows for every scorer on this suite
+(scenario scores are bimodal), so no claim is made that T-MDP beats the threshold
+baseline here — its distinct behavior appears only in the defer variant (3 safe DEFERs, 0
+risky) and in the value-iteration provenance of p*; the 5 demo transcripts have *seeded*
+pending actions, because the CLI planner refuses to volunteer risky structured plans
+(itself a valid first line of defense) — gate decisions, scores, and the model's
+follow-up reactions are real, the plan proposal is not autonomous, and the 40-scenario
+gate eval is unseeded; and the judge's on-suite calibration (ECE 0.0492, six empty middle
+bins at n=40) is indicative only, per the artifact. The test suite grew from 118 to 151
+(`test_llm_judge.py` +13, `test_tooluse_agent.py` +20).
+
+**What remains open.** The scenario suite is hand-authored — no verbatim SafeToolBench
+items were reachable at run time — so evaluation on real SafeToolBench/Risky-Bench data
+remains future work, and the hard-benign FP rates remain constructed-set rates, not
+deployment estimates. Consolidated open items 1 (out-of-lab evaluation) and 2
+(sequential-semantics cost sweep) are unchanged. Item 4 (regression tests pinning the
+corrected EID-10 rule) is **still open**: verified 2026-07-22 against the current
+151-test suite — no test exercises the source/mask-aware EID-10 labeling behavior. Items
+5 and 6 are unchanged.
