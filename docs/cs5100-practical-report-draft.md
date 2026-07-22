@@ -206,6 +206,8 @@ First, the T-MDP's optimality guarantee (`p* = (c_block − c_execute) / c_compr
 
 Second, substituting an LLM for the classifier would merge two research variables — LLM judgment quality and T-MDP decision quality — into a single observed outcome. If the combined system performs well or poorly, the contribution cannot be attributed to the T-MDP layer specifically. The existing architecture keeps these layers cleanly separated: Phase 2 can be replaced by any calibrated scorer (logistic regression, random forest, or a future calibrated neural model) without modifying Phase 3. An LLM integration is a valid future experiment once calibration of LLM outputs has been demonstrated, but it is not a drop-in replacement for the current Phase 2.
 
+**Measured update (2026-07-22).** The first rationale above was an assertion, and measuring it reversed it: Section 6.8 scores 542 events with both an LLM judge and the deployed classifier under identical reliability binning, and on every subset whose labels the classifier was not trained to reproduce, the LLM judge is the better-calibrated scorer (overall matched ECE 0.0663 vs 0.3447; hard-benign false-positive rate at p\* ≥ 0.40: 5.3% vs 100%). The design decision documented above stands as the design-time record, but its calibration premise is retracted: the honest remaining grounds for a classifier-only Phase 2 are operational (per-event LLM latency/cost, sampling nondeterminism, a 0.55% refusal rate, model-snapshot dependence) plus the attribution argument, which is unaffected. Sections 6.8 and 6.9 report the measurements; how this revision is presented in the final report is an open team decision.
+
 ### 4.6 Value iteration
 
 For each per-event model, value iteration iterates over the finite reachable state space until the maximum value change falls below `tolerance=1e-6` (the production default; `1e-9` is used only in unit tests). The greedy action at the initial state determines the policy output. Because the state space is small (≤ 15 states per candidate), convergence is fast — under 1ms per candidate.
@@ -522,6 +524,37 @@ On 2026-07-21 a 22-agent adversarial review (6 hostile reviewers, findings chall
 
 The full fix specification and per-finding responses are in `docs/review/`.
 
+### 6.8 LLM-Judge Calibration (Measured — Reverses the Section 4.5 Assertion)
+
+Section 4.5 rejected an LLM-based risk scorer on the asserted (never measured) grounds that "LLM-generated confidence numbers are not calibrated." This experiment measures that claim (`runs/run_llm_judge_calibration.py`; artifacts in `runs/llm_judge_calibration/`). A stratified, seeded sample of 542 events was scored once each by the shared LLM judge (`src/tmdp_sandbox/llm_judge.py`, claude-opus-4-8 via the Claude Code CLI, each event presented with its real k=10 preceding context window) and by the deployed classifier (`models/ml_classifier_logistic.joblib`), then both were evaluated with the same 10-bin reliability scheme as Section 6.5. Three subsets: (a) **train_pool** — 240 events with `auto_label_event` labels, *circular for the classifier* (it was trained on these labels), independent evidence only for the LLM judge; (b) **hard_benign** — all 152 hand-authored benign admin events from the Section 6.7.2 FP eval; (c) **eval_holdout** — 150 events with frozen `label_by_technique` labels, stratified by (technique, label).
+
+| Subset | n | LLM ECE | Clf ECE | LLM Brier | Clf Brier |
+|---|---:|---:|---:|---:|---:|
+| train_pool (circular for clf) | 240 | 0.1993 | 0.0005 | 0.2005 | 0.0000 |
+| hard_benign | 152 | 0.1282 | 0.9188 | 0.0294 | 0.8705 |
+| eval_holdout | 150 | 0.0790 | 0.3506 | 0.0460 | 0.1594 |
+| **overall (matched, n=539)** | 542 | **0.0663** | **0.3447** | **0.1101** | **0.2884** |
+
+The classifier "wins" only on the subset whose labels it was trained to reproduce — the ECE=0.0005 there is the circularity of Section 7.2 restated, not calibration skill. On every subset with an independent signal, the LLM judge is substantially better calibrated. The decision-relevant contrast is at the operating point: on the hard-benign set (every malicious verdict is a false positive), **the classifier blocks 152/152 = 100.0% at p\* ≥ 0.40** (95% Wilson CI 97.5–100.0%) while **the LLM judge blocks 8/151 = 5.3%** (CI 2.7–10.1%); at a 0.50 threshold the contrast is 93.4% vs 0.7%. The score-desert asymmetry also reverses: on eval_holdout the classifier concentrates 92.7% of its mass *inside* the 0.1–0.9 interval — 130 events pile up in the [0.4–0.5] bin with mean predicted 0.408 against an actual malicious rate of 0.031, a 0.38 gap sitting directly on the threshold — while the LLM judge places 10.8% there with a monotone reliability profile.
+
+Consequently the honest grounds for the classifier-only deployment are **operational, not calibration-based**: per-event latency and cost of an LLM call, sampling nondeterminism (single-pass scores carry noise), a measured 3/542 = 0.55% refusal/unparseable rate (recorded as null and excluded, never fabricated), and model-snapshot dependence. The attribution argument of Section 4.5 (keeping Phase 2 and Phase 3 separable) is unaffected and still holds. Limitations: single-pass scoring; subset (a) labels are circular for the classifier; subset (b) is authored rather than captured telemetry, so its FP rates are not deployment estimates; one model snapshot on one date (versions recorded in the artifact metadata).
+
+### 6.9 Tool-Use Agent Leg (LangChain Gate Demonstration)
+
+The proposal of record (`SandBox Project.docx`) specifies a tool-use agent whose pending actions pass through a combined risk judge (rule scorer + LLM judge) into the T-MDP policy. This leg now exists as a sandboxed demonstration (`runs/run_tooluse_eval.py`; artifacts in `runs/tooluse_eval/`), built on LangChain (langchain 1.3.14 / langchain-core 1.5.0, pinned in the `[llm]` extra) with a custom chat model over the Claude Code CLI and an explicit message/tool loop that keeps the gate between "model proposes" and "tool runs."
+
+**Gate evaluation** — 40 hand-authored SafeToolBench-*style* scenarios (20 risky, 20 safe; no verbatim benchmark items — the scenario text is our own), combined score = 0.4·rule + 0.6·LLM, T-MDP costs (10, 5, 1) → p\* = 0.40:
+
+| Scorer | Risky executed (↓) | Safe blocked (↓) |
+|---|---:|---:|
+| rule-only | 4/20 = 20.0% (CI 8.1–41.6%) | 3/20 = 15.0% (CI 5.2–36.0%) |
+| LLM-only | 0/20 = 0.0% (CI 0.0–16.1%) | 0/20 = 0.0% (CI 0.0–16.1%) |
+| **combined** | **0/20 = 0.0%** | **0/20 = 0.0%** |
+
+The combined scorer corrects all four rule-only misses and all three rule-only over-blocks; results are identical under threshold-0.5 (the gate scores are far from both thresholds on this small set), and the DEFER-enabled T-MDP defers 3 safe borderline cases rather than blocking them. The judge's scenario-level calibration (n=40, indicative only) is ECE=0.0492 / Brier=0.0044. **Agent demo** — five live LangChain agent transcripts (2 risky, 3 safe) run with the gate in the loop: both risky pending actions (recursive home-directory deletion; customer-data exfiltration by email) were STOPped at combined scores 0.928 and 0.560, all three safe actions PROCEEDed, and the agent's post-gate recovery messages are recorded verbatim. Because the CLI planner refuses risky plans upstream (itself a valid first line of defense), each demo scenario's canonical pending action is *seeded* to exercise the gate on a concrete proposal; the gate decisions and scores are live.
+
+**Scope statement:** this is a demonstration on a constructed suite, not a benchmark result — n=40 authored scenarios, mock tools with no real side effects, author-judged single-action labels, and no verbatim Risky-Bench/SafeToolBench items. It closes the proposal's architectural gap (the full rule + LLM → T-MDP → PROCEED/STOP/DEFER pipeline exists and functions end-to-end) and provides the first measurement of the combined scorer's value over either component alone.
+
 ## 7. Analysis
 
 ### 7.1 Threshold derivation, not superior inference
@@ -618,7 +651,7 @@ This project builds and evaluates a three-phase system for security command clas
 
 In the security noise sweep, the T-MDP and threshold-0.5 are identical at σ≤0.15 and diverge in 3 of 500 scenarios at σ=0.20 (exact p=0.25, Holm p=1.0): no security-domain comparison is significant, and the empty divergence window is a construction artifact of the labeling scheme, not evidence about attack distinctiveness. The sequential block architecture raises benign_allow_rate 0.209 → 0.978 with malicious_block_rate=1.000; the gain held in 498/498 paired scenarios, is structural, and is decision-layer-agnostic (the threshold-sequential arm matches it), so it is credited to the architecture change rather than to the T-MDP.
 
-An earlier independent evaluation (30 events, F1=1.000) was retracted due to test-set contamination (Section 6.7.1), and the same standard now reclassifies the cross-technique evaluation as a development diagnostic (Section 6.1.1). Remaining future work, in priority order: an out-of-lab evaluation on a non-OTRF corpus (EVTX-ATTACK-SAMPLES or DARPA OpTC) — the only way to measure real generalization; a benign corpus of captured (not authored) non-whitelist admin traffic; a cost sweep under sequential semantics; regeneration of the file-deletion cost sweep; and a DEFER harness that actually resolves reviews.
+An earlier independent evaluation (30 events, F1=1.000) was retracted due to test-set contamination (Section 6.7.1), and the same standard now reclassifies the cross-technique evaluation as a development diagnostic (Section 6.1.1). The two gaps against the proposal of record are now closed by measurement: the LLM-judge calibration experiment (Section 6.8) reversed this report's own asserted rationale for omitting an LLM scorer, and the LangChain tool-use gate (Section 6.9) demonstrates the proposal's full rule + LLM → T-MDP pipeline end-to-end on a constructed suite. Remaining future work, in priority order: an out-of-lab evaluation on a non-OTRF corpus (EVTX-ATTACK-SAMPLES or DARPA OpTC) — the only way to measure real generalization; a benign corpus of captured (not authored) non-whitelist admin traffic; a cost sweep under sequential semantics; regeneration of the file-deletion cost sweep; and a DEFER harness that actually resolves reviews.
 
 ## Appendix A. Reproducibility Notes
 
@@ -642,12 +675,14 @@ Key source files:
 - `runs/run_large_independent_eval.py`: large held-out-ZIP evaluation, labels-first protocol (Section 6.7.2)
 - `runs/run_hard_benign_eval.py`: hard-benign FP evaluation (Section 6.7.2)
 - `runs/run_fair_batch.py`: file-deletion domain paired comparison (Section 6.4)
+- `src/tmdp_sandbox/llm_judge.py` + `runs/run_llm_judge_calibration.py`: LLM-judge calibration experiment (Section 6.8; requires the `[llm]` extra and the Claude Code CLI)
+- `src/tmdp_sandbox/tooluse_agent.py` + `runs/run_tooluse_eval.py`: LangChain tool-use agent gate demonstration (Section 6.9; same requirements)
 
 **Pinned environment.** All numbers in this report were regenerated in one environment: Python 3.14.3, scikit-learn 1.9.0, numpy 2.5.1, pandas 3.0.3, joblib 1.5.3 (exact versions pinned in `pyproject.toml`; every results JSON records `library_versions`). Borderline-count metrics are not stable across library versions (Section 7.5), so reproduction requires this environment.
 
 Verification (in the pinned environment):
 ```bash
-python3 -m pytest -q   # 118 tests at the 2026-07-21 review verification (an earlier draft said 113 — stale); re-verify after the post-review code fixes
+python3 -m pytest -q   # 151 tests as of 2026-07-22 (118 at the 2026-07-21 review verification; an earlier draft said 113 — stale)
 python3 runs/train_classifier.py
 python3 runs/run_security_batch.py
 python3 runs/run_security_cost_sweep.py
