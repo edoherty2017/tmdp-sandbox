@@ -37,6 +37,13 @@ _SUSPICIOUS_PROCESSES = frozenset({
     "whoami.exe", "ipconfig.exe", "nltest.exe", "klist.exe",
 })
 
+# Monitoring/agent processes (hypervisor guest tools, AV engines) that routinely
+# open QUERY-only handles to system processes as housekeeping. Never treated as
+# credential-theft sources by the labeling rules.
+_AGENT_PROCESSES = frozenset({
+    "vboxservice.exe", "msmpeng.exe",
+})
+
 # Windows event IDs associated with attacker-relevant activity.
 _SUSPICIOUS_EVENT_IDS = frozenset({
     1102,   # Audit log cleared
@@ -67,12 +74,27 @@ _OBFUSCATION_PATTERNS = [
 ]
 
 
+# PROCESS_VM_READ (0x0010): the GrantedAccess right required to read target
+# process memory, i.e. to dump credentials. QUERY-only masks such as 0x1400
+# (QUERY_INFORMATION | QUERY_LIMITED_INFORMATION) lack it.
+_PROCESS_VM_READ = 0x0010
+
+# GrantedAccess appears as "flags=0x1400" in adapter-built command lines
+# (see preprocessing.load_otrf_dataset) and as "GrantedAccess": "0x1400"
+# in raw Sysmon EID-10 JSON.
+_GRANTED_ACCESS_RE = re.compile(
+    r"""(?:flags=|grantedaccess["']?\s*[:=]\s*["']?)(0x[0-9a-f]+|\d+)""",
+    re.IGNORECASE,
+)
+
+
 @dataclass(frozen=True)
 class BaselineIntegrityResult:
     process_name: str
     in_baseline: bool
     is_suspicious_process: bool
     has_obfuscated_command: bool
+    has_vm_read: bool
 
 
 @dataclass(frozen=True)
@@ -86,6 +108,30 @@ class ContextWindowFeatures:
     log_cleared_in_window: bool
 
 
+def parse_granted_access(event: EventSpec) -> int | None:
+    """Parse the GrantedAccess mask from an EID-10 process-access event.
+
+    Checks the adapter-built command line ("flags=0x1400") first, then the raw
+    log text ("GrantedAccess": "0x1400"). Returns None when no mask is present.
+    """
+    for text in (event.command_line, event.raw_log):
+        match = _GRANTED_ACCESS_RE.search(text)
+        if match:
+            token = match.group(1)
+            return int(token, 16) if token.lower().startswith("0x") else int(token)
+    return None
+
+
+def has_vm_read(event: EventSpec) -> bool:
+    """True when the event's GrantedAccess mask includes PROCESS_VM_READ (0x0010).
+
+    Dump-capable masks (e.g. 0x1010, PROCESS_ALL_ACCESS-style 0x1fffff) include
+    the bit; QUERY-only housekeeping masks (0x1400) and absent masks do not.
+    """
+    mask = parse_granted_access(event)
+    return mask is not None and bool(mask & _PROCESS_VM_READ)
+
+
 def check_baseline_integrity(event: EventSpec) -> BaselineIntegrityResult:
     """Phase 1 baseline integrity check for a single event."""
     proc = event.process_name.lower()
@@ -94,6 +140,7 @@ def check_baseline_integrity(event: EventSpec) -> BaselineIntegrityResult:
         in_baseline=proc in _BASELINE_PROCESSES,
         is_suspicious_process=proc in _SUSPICIOUS_PROCESSES,
         has_obfuscated_command=_has_obfuscation(event.command_line),
+        has_vm_read=has_vm_read(event),
     )
 
 

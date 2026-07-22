@@ -1,0 +1,30 @@
+Sequential Block Architecture Evaluation
+sigma=0.15, c_compromise=10.0 (p*=0.40), c_block=5.0, c_execute=1.0
+N=498 scenarios (malicious fractions: [0.1, 0.2, 0.3])
+================================================================================
+
+  Policy                      MalExec  BenAllow  MalBlock   AvgCost  Cost/Dec  Defer
+  ------------------------------------------------------------------------------
+  tmdp-stop-on-first         0.000    0.209     1.000       8.51     1.870  0.080
+  tmdp-sequential            0.000    0.978     1.000      35.82     1.791  0.347
+  threshold-0.5              0.000    0.214     1.000       8.55     1.879  0.000
+  threshold-0.5-sequential   0.002    1.000     1.000      36.19     1.810  0.000
+  oracle-stop                0.000    0.214     1.000       8.55     1.879  0.000
+  oracle-sequential          0.000    1.000     1.000      36.00     1.800  0.000
+
+Key: stop-on-first = blocks entire episode; sequential = BLOCK_EVENT per event, continues.
+Cost/Dec = total cost / total decision steps (episode cost is not comparable across
+architectures that process different amounts of work).
+
+Sequential improvement in benign_allow_rate:
+  tmdp-sequential:    0.9782  vs  tmdp-stop-on-first: 0.2091  (delta = +0.7691)
+  threshold-0.5-seq:  1.0000  vs  threshold-0.5-stop: 0.2138  (delta = +0.7862)
+  oracle-sequential:  1.0000  vs  oracle-stop-on-first: 0.2138  (theoretical max improvement)
+  The threshold-0.5-sequential arm shows the architectural gain is decision-layer-agnostic.
+
+Exact sign test (sequential > stop-on-first, paired per-scenario benign_allow_rate):
+  tmdp       +498 / 0:0 / -0  (n=498 pairs)  exact one-sided p=1.222e-150
+  threshold  +498 / 0:0 / -0  (n=498 pairs)  exact one-sided p=1.222e-150
+  The gain is structural — stop-on-first forfeits every event after its first block — so the test is descriptive, not inferential.
+
+Note: Scenarios are resampled with replacement from fixed benign/malicious event pools, so paired scenarios are not independent draws from a wider population.

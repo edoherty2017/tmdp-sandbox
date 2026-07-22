@@ -107,6 +107,7 @@ def main() -> None:
         "malicious_zips": [zf.name for zf in zip_files],
         "cv_logistic": cv_stats,
         "labeling": "preprocessing.auto_label_event (EventID + process + obfuscation patterns)",
+        "library_versions": _library_versions(),
     }
     stats_path = PROCESSED_DIR / "train_stats.json"
     stats_path.write_text(json.dumps(stats, indent=2))
@@ -170,6 +171,20 @@ def _cross_validate(feature_dicts: list[dict], labels: list[str], *, model: str 
         "f1": float(np.mean(f1s)),
         "f1_std": float(np.std(f1s)),
         "n_splits": n_splits,
+    }
+
+
+def _library_versions() -> dict:
+    # recorded in the results artifact so tables can be tied to an exact environment
+    import platform
+    from importlib.metadata import version
+
+    return {
+        "python": platform.python_version(),
+        "scikit-learn": version("scikit-learn"),
+        "numpy": version("numpy"),
+        "pandas": version("pandas"),
+        "joblib": version("joblib"),
     }
 
 

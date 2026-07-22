@@ -94,6 +94,20 @@ def _calibration_stats(scores: list[float], labels: list[int], n_bins: int = 10)
     return {"table": table, "ece": round(ece, 4), "mce": round(mce, 4), "brier": round(brier, 4)}
 
 
+def _library_versions() -> dict:
+    """Interpreter and library versions, recorded in results.json for reproducibility."""
+    import platform
+    from importlib.metadata import version
+
+    return {
+        "python": platform.python_version(),
+        "scikit-learn": version("scikit-learn"),
+        "numpy": version("numpy"),
+        "pandas": version("pandas"),
+        "joblib": version("joblib"),
+    }
+
+
 def _load_labeled_from_zips(zip_names: list[str]):
     import dataclasses
     events, labels = [], []
@@ -133,7 +147,7 @@ def main() -> None:
 
     pipeline = load_classifier(MODEL_PATH)
 
-    results = {}
+    results = {"library_versions": _library_versions()}
     summary_lines = [
         "Phase 2 Classifier Calibration Evaluation",
         "=" * 60,
@@ -201,9 +215,10 @@ def main() -> None:
         "Interpretation:",
         "  ECE < 0.05 is generally considered well-calibrated.",
         "  High concentration in 0.0-0.1 and 0.9-1.0 bins (near-binary output) is",
-        "  expected given the near-perfect CV F1=0.998. It means the classifier is",
-        "  confident and correct within distribution, but rarely produces scores in",
-        "  the 0.3-0.7 range where T-MDP and threshold policies diverge.",
+        "  expected given the perfect CV F1=1.000 (data/processed/train_stats.json).",
+        "  It means the classifier is confident and correct within distribution,",
+        "  but rarely produces scores in the 0.3-0.7 range where T-MDP and",
+        "  threshold policies diverge.",
         "  The T-MDP block threshold p*=0.40 corresponds to a real probability only",
         "  if events in the (0.35, 0.45) bucket have ~40% actual malicious rate.",
     ]

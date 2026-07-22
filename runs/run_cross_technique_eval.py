@@ -81,6 +81,20 @@ def _load_labeled_from_zips(zip_names: list[str]) -> tuple[list, list]:
     return events, labels
 
 
+def _library_versions() -> dict:
+    """Interpreter and library versions, recorded in results.json for reproducibility."""
+    import platform
+    from importlib.metadata import version
+
+    return {
+        "python": platform.python_version(),
+        "scikit-learn": version("scikit-learn"),
+        "numpy": version("numpy"),
+        "pandas": version("pandas"),
+        "joblib": version("joblib"),
+    }
+
+
 def _precision_recall_f1(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
@@ -233,6 +247,7 @@ def main() -> None:
     (OUT_DIR / "summary.txt").write_text(summary)
 
     results = {
+        "library_versions": _library_versions(),
         "train_zips": TRAIN_ZIPS,
         "test_zips": TEST_ZIPS,
         "train_stats": {"n": len(train_events), "n_benign": n_train_ben, "n_malicious": n_train_mal},

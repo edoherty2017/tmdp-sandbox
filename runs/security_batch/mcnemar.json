@@ -1,0 +1,78 @@
+{
+  "library_versions": {
+    "python": "3.14.3",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "joblib": "1.5.3"
+  },
+  "test": "exact two-sided binomial McNemar, paired on malicious_executed",
+  "correction": "Holm-Bonferroni across the five sigma rows (same 500 scenarios reused \u2014 one correlated family)",
+  "rows": [
+    {
+      "sigma": 0.0,
+      "n_shared": 500,
+      "b_tmdp_better": 0,
+      "c_thresh_better": 0,
+      "discordant": 0,
+      "p_exact": 1.0,
+      "chi2_cc": 0.0,
+      "p_chi2_1df": 1.0,
+      "mal_exec_tmdp": 0.0,
+      "mal_exec_thresh": 0.0,
+      "p_holm": 1.0
+    },
+    {
+      "sigma": 0.05,
+      "n_shared": 500,
+      "b_tmdp_better": 0,
+      "c_thresh_better": 0,
+      "discordant": 0,
+      "p_exact": 1.0,
+      "chi2_cc": 0.0,
+      "p_chi2_1df": 1.0,
+      "mal_exec_tmdp": 0.0,
+      "mal_exec_thresh": 0.0,
+      "p_holm": 1.0
+    },
+    {
+      "sigma": 0.1,
+      "n_shared": 500,
+      "b_tmdp_better": 0,
+      "c_thresh_better": 0,
+      "discordant": 0,
+      "p_exact": 1.0,
+      "chi2_cc": 0.0,
+      "p_chi2_1df": 1.0,
+      "mal_exec_tmdp": 0.0,
+      "mal_exec_thresh": 0.0,
+      "p_holm": 1.0
+    },
+    {
+      "sigma": 0.15,
+      "n_shared": 500,
+      "b_tmdp_better": 0,
+      "c_thresh_better": 0,
+      "discordant": 0,
+      "p_exact": 1.0,
+      "chi2_cc": 0.0,
+      "p_chi2_1df": 1.0,
+      "mal_exec_tmdp": 0.0,
+      "mal_exec_thresh": 0.0,
+      "p_holm": 1.0
+    },
+    {
+      "sigma": 0.2,
+      "n_shared": 500,
+      "b_tmdp_better": 3,
+      "c_thresh_better": 0,
+      "discordant": 3,
+      "p_exact": 0.25,
+      "chi2_cc": 1.3333333333333333,
+      "p_chi2_1df": 0.2482130789899236,
+      "mal_exec_tmdp": 0.0,
+      "mal_exec_thresh": 0.006,
+      "p_holm": 1.0
+    }
+  ]
+}

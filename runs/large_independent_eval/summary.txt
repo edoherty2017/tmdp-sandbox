@@ -1,0 +1,47 @@
+====================================================================
+LARGE INDEPENDENT EVALUATION RESULTS
+Threshold p* = 0.4  |  Real k=10 context windows  |  No iteration on test set
+====================================================================
+
+Technique      Tactic                n_mal  n_ben   Prec    Rec     F1   FN   FP
+--------------------------------------------------------------------------------
+T1003.001      Credential Access       173      3  0.983  1.000  0.991    0    3
+T1003.002      Credential Access         3      0  1.000  1.000  1.000    0    0
+T1003.003      Credential Access       331   7034  0.041  0.918  0.079   27 7032
+T1021.006      Lateral Movement        225      0  1.000  0.969  0.984    7    0
+T1047          Lateral Movement          1     42  0.023  1.000  0.045    0   42
+T1053.005      Persistence               8    152  1.000  1.000  1.000    0    0
+T1059.005      Execution                 2      0  1.000  1.000  1.000    0    0
+T1069.001      Discovery                 4      0  1.000  1.000  1.000    0    0
+T1087.001      Discovery                 4      0  1.000  1.000  1.000    0    0
+T1546.003      Persistence              64    172  1.000  1.000  1.000    0    0
+T1547.001      Persistence               0    141  0.000  0.000  0.000    0    0
+T1558.003      Credential Access        51      0  1.000  0.902  0.949    5    0
+--------------------------------------------------------------------------------
+OVERALL                                866   7544  0.105  0.955  0.189   39 7077
+
+Total events evaluated: 8410
+  Malicious: 866, Benign: 7544
+  TP=827  FP=7077  FN=39  TN=467
+Corpus funnel: 230676 events in ZIPs -> 8410 labeled, 222266 excluded (96.4% exclusion rate)
+
+Uncertainty:
+  Recall Wilson 95% CI:    [0.939, 0.967]
+  Precision Wilson 95% CI: [0.098, 0.112]
+  F1 cluster-bootstrap 95% CI (ZIPs resampled, 10000 iters, seed 42): [0.094, 0.989]
+
+Overall excluding T1047: P=0.105 R=0.955 F1=0.189 (n_mal=865)
+Macro-averaged recall over techniques: 0.981
+Dedup by command line: P=0.927 R=0.962 F1=0.944 (n_mal=526, n_ben=134)
+
+Trivial baselines (same ground truth):
+  always_malicious       P=0.103 R=1.000 F1=0.187 (FP=7544, FN=0)
+  always_benign          P=0.000 R=0.000 F1=0.000 (FP=0, FN=866)
+  whitelist_21_process   P=0.105 R=0.955 F1=0.189 (FP=7077, FN=39)
+  whitelist_3_process    P=0.108 R=0.994 F1=0.196 (FP=7077, FN=5)
+Model vs 21-process whitelist rule agreement: 8410/8410 (100.0%)
+
+Comparison to prior evaluations:
+  CV F1 (in-distribution, n=11935, circular labels): 1.000
+  Independent eval (n=30, 5 techniques):   1.000  [CONTAMINATED — retracted]
+  This eval (n=8410, 12 techniques, 15 ZIPs): 0.189

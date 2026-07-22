@@ -1,0 +1,51 @@
+Hard-Benign Evaluation: legitimate admin use of non-whitelist tooling
+======================================================================
+
+Corpus: 152 hand-authored benign Windows admin events (11 categories, 152 unique command lines).
+Provenance: hand-authored by the project authors (2026-07-21) for the
+adversarial-review remediation — NOT captured telemetry. Every process is
+outside the 21-entry baseline whitelist, so every malicious verdict below
+is a false positive. This eval measures whether the deployed model can
+EVER say benign for non-whitelist processes; it does not estimate a
+deployment FP rate.
+
+Model: models/ml_classifier_logistic.joblib (MLCommandClassifier, k=10)
+
+Empty context (matches the flagship-eval harness):
+  p* >= 0.40:                  FP 152/152 =  100.0%  (95% Wilson CI 97.5–100.0%)
+  p* >= 0.50:                  FP 152/152 =  100.0%  (95% Wilson CI 97.5–100.0%)
+  scores: min=0.5065  median=1.0  mean=0.9323  max=1.0
+
+Self-consistent context stream (corpus order, k=10):
+  p* >= 0.40:                  FP 152/152 =  100.0%  (95% Wilson CI 97.5–100.0%)
+  p* >= 0.50:                  FP 142/152 =   93.4%  (95% Wilson CI 88.3–96.4%)
+  scores: min=0.433  median=1.0  mean=0.9188  max=1.0
+
+Rule baselines (contrast — flag 100% by construction, since every corpus
+process is non-whitelist):
+  21-entry whitelist rule:     FP 152/152 =  100.0%  (95% Wilson CI 97.5–100.0%)
+  3-process whitelist rule:    FP 152/152 =  100.0%  (95% Wilson CI 97.5–100.0%)
+
+Per-category FP breakdown (model, p* >= 0.40):
+  Category            n  empty-ctx  ctx-stream  WL-21   WL-3
+  ----------------------------------------------------------
+  powershell         36         36          36     36     36
+  cmd                15         15          15     15     15
+  reg                12         12          12     12     12
+  schtasks           10         10          10     10     10
+  net                16         16          16     16     16
+  wmic               12         12          12     12     12
+  sc                  7          7           7      7      7
+  robocopy            8          8           8      8      8
+  network_diag       14         14          14     14     14
+  certutil            5          5           5      5      5
+  sysadmin_misc      17         17          17     17     17
+
+Limitations:
+  - Hand-authored, not captured telemetry: event frequencies and command-line phrasing were chosen by the authors, so FP rates here are not deployment FP-rate estimates.
+  - Measures whether the model can EVER say benign for non-whitelist processes; a model can pass this corpus and still false-positive heavily on real traffic.
+  - All events are EID 1/4688 process creations. The benign EID 4698 task-created events that a schtasks /create would also emit are excluded: the classifier hard-codes 0.99 for _ATTACK_EVENT_IDS, so those would be FPs by construction (a separate known limitation of the deterministic override).
+  - The context stream is the corpus in authored (category-grouped) order, approximating an admin working through related tasks on one host — not a real host timeline interleaved with baseline process noise.
+  - Every corpus process is outside the baseline whitelist by design, so both rule baselines flag 100% of events; they are included as the contrast the review asked for, not as deployment-plausible detectors.
+
+Library versions: python=3.14.3, scikit-learn=1.9.0, numpy=2.5.1, pandas=3.0.3, joblib=1.5.3

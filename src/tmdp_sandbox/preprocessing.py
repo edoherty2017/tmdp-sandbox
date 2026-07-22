@@ -215,6 +215,10 @@ def extract_features(
         "feat__in_baseline": float(integrity.in_baseline),
         "feat__is_suspicious_process": float(integrity.is_suspicious_process),
         "feat__has_obfuscated_command": float(integrity.has_obfuscated_command),
+        # EID-10 access mask: PROCESS_VM_READ (0x0010) present in GrantedAccess.
+        # Shares GrantedAccess parsing with auto_label_event so rule and feature
+        # cannot drift.
+        "feat__has_vm_read": float(integrity.has_vm_read),
 
         # Event metadata
         "feat__event_id": float(event.event_id) if event.event_id is not None else -1.0,
@@ -294,13 +298,19 @@ def auto_label_event(event: "EventSpec") -> str | None:
     Returns None for ambiguous events that should be excluded from training.
 
     Labeling strategy:
-    - Malicious: LOLBin process creation, lsass process access, persistence
+    - Malicious: LOLBin process creation, dump-capable lsass process access
+      (PROCESS_VM_READ mask, non-baseline/non-agent source), persistence
       registry writes, unsigned DLL loads by suspicious processes.
     - Benign: known-good process creation without obfuscation, normal registry
       ops by baseline processes, signed Microsoft DLL loads.
     - None: insufficient signal — exclude from training set.
     """
-    from .context_window import _BASELINE_PROCESSES, _SUSPICIOUS_PROCESSES
+    from .context_window import (
+        _AGENT_PROCESSES,
+        _BASELINE_PROCESSES,
+        _SUSPICIOUS_PROCESSES,
+        has_vm_read,
+    )
 
     eid = event.event_id
     proc = event.process_name.lower()
@@ -325,7 +335,17 @@ def auto_label_event(event: "EventSpec") -> str | None:
     if eid == 10:
         target = event.parent_process.lower()
         if any(t in target for t in _CRED_THEFT_TARGETS):
-            return "malicious"
+            # Credential theft requires a dump-capable GrantedAccess mask
+            # (PROCESS_VM_READ 0x0010) from a non-baseline, non-agent source.
+            # QUERY-only masks (e.g. 0x1400) are routine housekeeping polls by
+            # hypervisor/AV agents — ambiguous regardless of source.
+            if (
+                has_vm_read(event)
+                and proc not in _BASELINE_PROCESSES
+                and proc not in _AGENT_PROCESSES
+            ):
+                return "malicious"
+            return None
         if proc in _BASELINE_PROCESSES:
             return "benign"
         return None

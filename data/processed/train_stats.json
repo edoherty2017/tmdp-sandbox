@@ -1,0 +1,32 @@
+{
+  "n_benign": 11791,
+  "n_malicious": 144,
+  "n_total": 11935,
+  "malicious_zips": [
+    "cmd_service_mod_fax.zip",
+    "cmd_stop_event_logging_controlset001_minint_key.zip",
+    "cmd_stop_event_logging_controlset_minint_key.zip",
+    "empire_uac_shellapi_fodhelper.zip",
+    "psh_stop_event_logging_controlset001_minint_key.zip",
+    "psh_stop_event_logging_controlset_minint_key.zip",
+    "reg_stop_event_logging_controlset001_minint_key.zip",
+    "reg_stop_event_logging_controlset_minint_key.zip"
+  ],
+  "cv_logistic": {
+    "precision": 1.0,
+    "prec_std": 0.0,
+    "recall": 1.0,
+    "rec_std": 0.0,
+    "f1": 1.0,
+    "f1_std": 0.0,
+    "n_splits": 5
+  },
+  "labeling": "preprocessing.auto_label_event (EventID + process + obfuscation patterns)",
+  "library_versions": {
+    "python": "3.14.3",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "joblib": "1.5.3"
+  }
+}

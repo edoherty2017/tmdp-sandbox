@@ -18,12 +18,14 @@ Usage:
 Outputs (written to runs/security_batch/):
     results.json       — per-episode results for all policies × noise levels
     aggregate.json     — per-policy × noise-level aggregate stats
+    mcnemar.json       — exact McNemar tests (tmdp vs threshold-0.5) per sigma
     summary.txt        — human-readable table
 """
 
 from __future__ import annotations
 
 import json
+import math
 import random
 import sys
 import time
@@ -192,8 +194,13 @@ def main() -> None:
     elapsed = time.time() - t0
     print(f"\nTotal time: {elapsed:.1f}s")
 
-    (OUT_DIR / "results.json").write_text(json.dumps(all_results, indent=2))
+    lib_versions = _library_versions()
 
+    (OUT_DIR / "results.json").write_text(json.dumps(
+        {"library_versions": lib_versions, "results": all_results}, indent=2))
+
+    # aggregate.json keeps sigma strings as top-level keys (generate_figures.py
+    # parses every key with float()), so version metadata lives in the other JSONs.
     agg = _compute_aggregates(all_results)
     (OUT_DIR / "aggregate.json").write_text(json.dumps(agg, indent=2))
 
@@ -202,10 +209,17 @@ def main() -> None:
     print(f"\n{summary}")
 
     mcnemar = _compute_mcnemar(all_results)
-    (OUT_DIR / "mcnemar.json").write_text(json.dumps(mcnemar, indent=2))
-    print("McNemar (tmdp-p0.40 vs threshold-0.5) by sigma:")
+    (OUT_DIR / "mcnemar.json").write_text(json.dumps({
+        "library_versions": lib_versions,
+        "test": "exact two-sided binomial McNemar, paired on malicious_executed",
+        "correction": "Holm-Bonferroni across the five sigma rows "
+                      "(same 500 scenarios reused — one correlated family)",
+        "rows": mcnemar,
+    }, indent=2))
+    print("McNemar exact test (tmdp-p0.40 vs threshold-0.5) by sigma:")
     for row in mcnemar:
-        print(f"  sigma={row['sigma']:.2f}  discordant={row['discordant']}  "
+        print(f"  sigma={row['sigma']:.2f}  b={row['b_tmdp_better']}  c={row['c_thresh_better']}  "
+              f"p_exact={row['p_exact']:.4f}  p_holm={row['p_holm']:.4f}  "
               f"mal_exec_rate tmdp={row['mal_exec_tmdp']:.3f} vs thresh={row['mal_exec_thresh']:.3f}")
 
 
@@ -229,9 +243,49 @@ def _compute_aggregates(results: list[dict]) -> dict:
     return out
 
 
+def _library_versions() -> dict:
+    """Exact library versions used for this run, for reproducibility."""
+    import platform
+    import joblib
+    import numpy
+    import pandas
+    import sklearn
+    return {
+        "python": platform.python_version(),
+        "scikit-learn": sklearn.__version__,
+        "numpy": numpy.__version__,
+        "pandas": pandas.__version__,
+        "joblib": joblib.__version__,
+    }
+
+
+def _mcnemar_exact_p(b: int, c: int) -> float:
+    """Exact two-sided binomial McNemar p-value.
+
+    Under H0 the discordant count b is Binomial(n=b+c, 0.5):
+    p = min(1, 2 * P(X >= max(b, c))), with p = 1.0 when n == 0.
+    """
+    n = b + c
+    if n == 0:
+        return 1.0
+    tail = sum(math.comb(n, k) for k in range(max(b, c), n + 1))
+    return min(1.0, 2.0 * tail * 0.5 ** n)
+
+
+def _holm_bonferroni(p_values: list[float]) -> list[float]:
+    """Holm-Bonferroni step-down adjusted p-values (monotone, capped at 1)."""
+    m = len(p_values)
+    order = sorted(range(m), key=lambda i: p_values[i])
+    adjusted = [0.0] * m
+    running_max = 0.0
+    for rank, i in enumerate(order):
+        running_max = max(running_max, min(1.0, (m - rank) * p_values[i]))
+        adjusted[i] = running_max
+    return adjusted
+
+
 def _compute_mcnemar(results: list[dict]) -> list[dict]:
     """Paired McNemar test: tmdp-p0.40 vs threshold-0.5 on malicious_executed outcome."""
-    import math
     rows = []
     for sigma in SIGMA_VALUES:
         tmdp_by_scenario = {
@@ -247,13 +301,13 @@ def _compute_mcnemar(results: list[dict]) -> list[dict]:
         b = sum(1 for sid in shared if not tmdp_by_scenario[sid] and thresh_by_scenario[sid])
         c = sum(1 for sid in shared if tmdp_by_scenario[sid] and not thresh_by_scenario[sid])
         discordant = b + c
-        # McNemar chi-square (continuity corrected)
-        if discordant > 0:
-            chi2 = (abs(b - c) - 1) ** 2 / discordant if discordant > 1 else 0.0
-            # approximate p from chi2 with 1 df
-            p_approx = math.exp(-chi2 / 2) if chi2 > 0 else 1.0
-        else:
-            chi2, p_approx = 0.0, 1.0
+        # Primary test: exact two-sided binomial McNemar (same test as the
+        # file-deletion domain)
+        p_exact = _mcnemar_exact_p(b, c)
+        # Continuity-corrected chi-square kept as a reference value only; its
+        # correct 1-df p-value is P(X_1 >= chi2) = erfc(sqrt(chi2 / 2))
+        chi2 = (abs(b - c) - 1) ** 2 / discordant if discordant > 1 else 0.0
+        p_chi2_1df = math.erfc(math.sqrt(chi2 / 2.0))
         mal_exec_tmdp = sum(1 for sid in shared if tmdp_by_scenario[sid]) / max(1, len(shared))
         mal_exec_thresh = sum(1 for sid in shared if thresh_by_scenario[sid]) / max(1, len(shared))
         rows.append({
@@ -262,11 +316,16 @@ def _compute_mcnemar(results: list[dict]) -> list[dict]:
             "b_tmdp_better": b,
             "c_thresh_better": c,
             "discordant": discordant,
+            "p_exact": p_exact,
             "chi2_cc": chi2,
-            "p_approx": p_approx,
+            "p_chi2_1df": p_chi2_1df,
             "mal_exec_tmdp": mal_exec_tmdp,
             "mal_exec_thresh": mal_exec_thresh,
         })
+    # The five sigma rows reuse the same 500 scenarios (common random numbers),
+    # so adjust across them as one correlated family.
+    for row, p_holm in zip(rows, _holm_bonferroni([r["p_exact"] for r in rows])):
+        row["p_holm"] = p_holm
     return rows
 
 

@@ -1,0 +1,48 @@
+Phase 2 Classifier Calibration Evaluation
+============================================================
+
+A perfectly calibrated classifier sits on the diagonal:
+P(malicious)=0.7 → 70% of events in that bucket are truly malicious.
+ECE (Expected Calibration Error): weighted mean |predicted − actual|.
+MCE (Maximum Calibration Error): worst-bucket gap.
+Brier score: mean squared error of probability estimates (lower = better).
+
+In-distribution (5-fold OOF, n=11935, malicious=144, benign=11791):
+  Range             n     Pred   Actual      Gap
+  ----------------------------------------------
+  [0.0–0.1]   11791    0.0000    0.0000    0.0000
+  [0.1–0.2]          (empty)
+  [0.2–0.3]          (empty)
+  [0.3–0.4]          (empty)
+  [0.4–0.5]          (empty)
+  [0.5–0.6]          (empty)
+  [0.6–0.7]          (empty)
+  [0.7–0.8]          (empty)
+  [0.8–0.9]          (empty)
+  [0.9–1.0]     144    0.9996    1.0000    0.0004
+  ECE=0.0000  MCE=0.0004  Brier=0.0000
+
+Cross-technique (empire_uac + cmd_service_mod_fax, n=1484, malicious=90, benign=1394):
+  Range             n     Pred   Actual      Gap
+  ----------------------------------------------
+  [0.0–0.1]    1394    0.0000    0.0000    0.0000
+  [0.1–0.2]          (empty)
+  [0.2–0.3]          (empty)
+  [0.3–0.4]          (empty)
+  [0.4–0.5]          (empty)
+  [0.5–0.6]          (empty)
+  [0.6–0.7]          (empty)
+  [0.7–0.8]          (empty)
+  [0.8–0.9]          (empty)
+  [0.9–1.0]      90    0.9995    1.0000    0.0005
+  ECE=0.0000  MCE=0.0005  Brier=0.0000
+
+Interpretation:
+  ECE < 0.05 is generally considered well-calibrated.
+  High concentration in 0.0-0.1 and 0.9-1.0 bins (near-binary output) is
+  expected given the perfect CV F1=1.000 (data/processed/train_stats.json).
+  It means the classifier is confident and correct within distribution,
+  but rarely produces scores in the 0.3-0.7 range where T-MDP and
+  threshold policies diverge.
+  The T-MDP block threshold p*=0.40 corresponds to a real probability only
+  if events in the (0.35, 0.45) bucket have ~40% actual malicious rate.

@@ -4,15 +4,24 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+*.egg-info/
 
-# Experiment output directories (inside runs/) — keep run scripts
-runs/*/
+# Experiment output files (inside runs/) — keep run scripts and the small
+# result artifacts; large files (scores.json, episode dumps) stay ignored
+runs/*/*
+!runs/*/results.json
+!runs/*/summary.txt
+!runs/*/mcnemar.json
+!runs/*/ground_truth_labels.json
 runs/*.jsonl
 runs/*.html
 runs/*.xml
 
-# Raw data and trained models — too large for git
-data/
+# Raw data and trained models — too large for git; keep train_stats.json
+data/*
+!data/processed
+data/processed/*
+!data/processed/train_stats.json
 models/
 
 # Generated HTML galleries (base64-embedded images, 2MB+)

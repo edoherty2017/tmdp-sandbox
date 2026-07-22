@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import platform
 from collections import defaultdict
+from importlib.metadata import version
 from pathlib import Path
 
 from tmdp_sandbox.batch import run_batch_experiment
@@ -9,7 +11,7 @@ from tmdp_sandbox.metrics import summarize_episode_results
 from tmdp_sandbox.scenario_generator import ScenarioGeneratorConfig, write_generated_scenarios
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN_ROOT = Path("/home/doher/tmdp-sandbox-runs")
+RUN_ROOT = ROOT / "runs" / "fair_batch"
 SCENARIO_DIR = RUN_ROOT / "fair_comparison_scenarios"
 OUTPUT_ROOT = RUN_ROOT / "fair_comparison_cat10"
 POLICIES = (
@@ -51,6 +53,16 @@ def group_summary(rows: list[dict[str, object]], keys: tuple[str, ...]) -> list[
         record.update(summarize_episode_results(group_rows))
         output.append(record)
     return output
+
+
+def library_versions() -> dict[str, str]:
+    return {
+        "python": platform.python_version(),
+        "scikit-learn": version("scikit-learn"),
+        "numpy": version("numpy"),
+        "pandas": version("pandas"),
+        "joblib": version("joblib"),
+    }
 
 
 def main() -> None:
@@ -114,6 +126,7 @@ def main() -> None:
             "implicit_tmdp_threshold": (5.0 - 1.0) / 10.0,
             "risk_threshold": 0.5,
         },
+        "library_versions": library_versions(),
         "overall": summarize_episode_results(all_rows),
         "by_sigma_policy": group_summary(all_rows, ("sigma", "policy_id")),
         "by_sigma_policy_ambiguity": group_summary(all_rows, ("sigma", "policy_id", "ambiguity_level")),

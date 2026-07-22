@@ -1,0 +1,75 @@
+{
+  "library_versions": {
+    "python": "3.14.3",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "joblib": "1.5.3"
+  },
+  "train_zips": [
+    "cmd_stop_event_logging_controlset001_minint_key.zip",
+    "cmd_stop_event_logging_controlset_minint_key.zip",
+    "psh_stop_event_logging_controlset001_minint_key.zip",
+    "psh_stop_event_logging_controlset_minint_key.zip",
+    "reg_stop_event_logging_controlset001_minint_key.zip",
+    "reg_stop_event_logging_controlset_minint_key.zip"
+  ],
+  "test_zips": [
+    "empire_uac_shellapi_fodhelper.zip",
+    "cmd_service_mod_fax.zip"
+  ],
+  "train_stats": {
+    "n": 10451,
+    "n_benign": 10397,
+    "n_malicious": 54
+  },
+  "test_stats": {
+    "n": 1484,
+    "n_benign": 1394,
+    "n_malicious": 90
+  },
+  "in_sample": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  },
+  "overall_test": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "tp": 90,
+    "fp": 0,
+    "tn": 1394,
+    "fn": 0
+  },
+  "per_zip": {
+    "empire_uac_shellapi_fodhelper.zip": {
+      "n": 1394,
+      "n_malicious": 71,
+      "n_benign": 1323,
+      "tp": 71,
+      "fp": 0,
+      "tn": 1323,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "cmd_service_mod_fax.zip": {
+      "n": 90,
+      "n_malicious": 19,
+      "n_benign": 71,
+      "tp": 19,
+      "fp": 0,
+      "tn": 71,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "score_distribution": {
+    "malicious_mean": 0.9964,
+    "benign_mean": 0.0
+  }
+}

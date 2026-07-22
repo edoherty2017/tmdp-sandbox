@@ -32,6 +32,7 @@ _NUMERIC_FEATURES = [
     "feat__in_baseline",
     "feat__is_suspicious_process",
     "feat__has_obfuscated_command",
+    "feat__has_vm_read",
     "feat__event_id",
     "feat__is_attack_eid",
     "feat__is_system_user",

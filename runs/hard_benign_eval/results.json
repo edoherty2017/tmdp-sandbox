@@ -1,0 +1,1479 @@
+{
+  "provenance": {
+    "source": "hand-authored",
+    "authored": "2026-07-21, project authors, adversarial-review remediation (findings 1 and 6)",
+    "description": "Benign Windows admin-activity corpus stored as the CORPUS literal in runs/run_hard_benign_eval.py. Every event is realistic sysadmin activity using processes OUTSIDE the 21-entry baseline whitelist; every malicious verdict is a false positive.",
+    "limitations": [
+      "Hand-authored, not captured telemetry: event frequencies and command-line phrasing were chosen by the authors, so FP rates here are not deployment FP-rate estimates.",
+      "Measures whether the model can EVER say benign for non-whitelist processes; a model can pass this corpus and still false-positive heavily on real traffic.",
+      "All events are EID 1/4688 process creations. The benign EID 4698 task-created events that a schtasks /create would also emit are excluded: the classifier hard-codes 0.99 for _ATTACK_EVENT_IDS, so those would be FPs by construction (a separate known limitation of the deterministic override).",
+      "The context stream is the corpus in authored (category-grouped) order, approximating an admin working through related tasks on one host \u2014 not a real host timeline interleaved with baseline process noise.",
+      "Every corpus process is outside the baseline whitelist by design, so both rule baselines flag 100% of events; they are included as the contrast the review asked for, not as deployment-plausible detectors."
+    ]
+  },
+  "corpus": {
+    "n": 152,
+    "categories": {
+      "powershell": 36,
+      "cmd": 15,
+      "reg": 12,
+      "schtasks": 10,
+      "net": 16,
+      "wmic": 12,
+      "sc": 7,
+      "robocopy": 8,
+      "network_diag": 14,
+      "certutil": 5,
+      "sysadmin_misc": 17
+    },
+    "unique_processes": [
+      "arp.exe",
+      "certutil.exe",
+      "cleanmgr.exe",
+      "cmd.exe",
+      "defrag.exe",
+      "dism.exe",
+      "getmac.exe",
+      "gpresult.exe",
+      "gpupdate.exe",
+      "hostname.exe",
+      "ipconfig.exe",
+      "net.exe",
+      "netstat.exe",
+      "nltest.exe",
+      "nslookup.exe",
+      "ping.exe",
+      "powercfg.exe",
+      "powershell.exe",
+      "quser.exe",
+      "reg.exe",
+      "robocopy.exe",
+      "route.exe",
+      "sc.exe",
+      "schtasks.exe",
+      "sfc.exe",
+      "shutdown.exe",
+      "systeminfo.exe",
+      "taskkill.exe",
+      "tasklist.exe",
+      "tracert.exe",
+      "w32tm.exe",
+      "wevtutil.exe",
+      "whoami.exe",
+      "wmic.exe"
+    ],
+    "unique_command_lines": 152
+  },
+  "library_versions": {
+    "python": "3.14.3",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "joblib": "1.5.3"
+  },
+  "model": {
+    "path": "models/ml_classifier_logistic.joblib",
+    "window_size": 10,
+    "empty_context": {
+      "scores": {
+        "min": 0.5065,
+        "median": 1.0,
+        "mean": 0.9323,
+        "max": 1.0
+      },
+      "fp_at": [
+        {
+          "threshold": 0.4,
+          "n": 152,
+          "fp": 152,
+          "fp_rate": 1.0,
+          "wilson_95ci": [
+            0.9753,
+            1.0
+          ]
+        },
+        {
+          "threshold": 0.5,
+          "n": 152,
+          "fp": 152,
+          "fp_rate": 1.0,
+          "wilson_95ci": [
+            0.9753,
+            1.0
+          ]
+        }
+      ]
+    },
+    "context_stream_k10": {
+      "scores": {
+        "min": 0.433,
+        "median": 1.0,
+        "mean": 0.9188,
+        "max": 1.0
+      },
+      "fp_at": [
+        {
+          "threshold": 0.4,
+          "n": 152,
+          "fp": 152,
+          "fp_rate": 1.0,
+          "wilson_95ci": [
+            0.9753,
+            1.0
+          ]
+        },
+        {
+          "threshold": 0.5,
+          "n": 152,
+          "fp": 142,
+          "fp_rate": 0.9342,
+          "wilson_95ci": [
+            0.8831,
+            0.9639
+          ]
+        }
+      ]
+    }
+  },
+  "rule_baselines": {
+    "whitelist_21": {
+      "rule": "malicious iff process_name not in _BASELINE_PROCESSES (21 entries)",
+      "fp": 152,
+      "n": 152,
+      "fp_rate": 1.0,
+      "wilson_95ci": [
+        0.9753,
+        1.0
+      ]
+    },
+    "whitelist_3": {
+      "rule": "malicious iff process_name not in {svchost.exe, explorer.exe, runtimebroker.exe}",
+      "fp": 152,
+      "n": 152,
+      "fp_rate": 1.0,
+      "wilson_95ci": [
+        0.9753,
+        1.0
+      ]
+    }
+  },
+  "per_category": {
+    "powershell": {
+      "n": 36,
+      "model_empty_fp_p40": 36,
+      "model_ctx_fp_p40": 36,
+      "model_empty_fp_p50": 36,
+      "model_ctx_fp_p50": 36,
+      "whitelist21_fp": 36,
+      "whitelist3_fp": 36
+    },
+    "cmd": {
+      "n": 15,
+      "model_empty_fp_p40": 15,
+      "model_ctx_fp_p40": 15,
+      "model_empty_fp_p50": 15,
+      "model_ctx_fp_p50": 15,
+      "whitelist21_fp": 15,
+      "whitelist3_fp": 15
+    },
+    "reg": {
+      "n": 12,
+      "model_empty_fp_p40": 12,
+      "model_ctx_fp_p40": 12,
+      "model_empty_fp_p50": 12,
+      "model_ctx_fp_p50": 12,
+      "whitelist21_fp": 12,
+      "whitelist3_fp": 12
+    },
+    "schtasks": {
+      "n": 10,
+      "model_empty_fp_p40": 10,
+      "model_ctx_fp_p40": 10,
+      "model_empty_fp_p50": 10,
+      "model_ctx_fp_p50": 10,
+      "whitelist21_fp": 10,
+      "whitelist3_fp": 10
+    },
+    "net": {
+      "n": 16,
+      "model_empty_fp_p40": 16,
+      "model_ctx_fp_p40": 16,
+      "model_empty_fp_p50": 16,
+      "model_ctx_fp_p50": 16,
+      "whitelist21_fp": 16,
+      "whitelist3_fp": 16
+    },
+    "wmic": {
+      "n": 12,
+      "model_empty_fp_p40": 12,
+      "model_ctx_fp_p40": 12,
+      "model_empty_fp_p50": 12,
+      "model_ctx_fp_p50": 12,
+      "whitelist21_fp": 12,
+      "whitelist3_fp": 12
+    },
+    "sc": {
+      "n": 7,
+      "model_empty_fp_p40": 7,
+      "model_ctx_fp_p40": 7,
+      "model_empty_fp_p50": 7,
+      "model_ctx_fp_p50": 7,
+      "whitelist21_fp": 7,
+      "whitelist3_fp": 7
+    },
+    "robocopy": {
+      "n": 8,
+      "model_empty_fp_p40": 8,
+      "model_ctx_fp_p40": 8,
+      "model_empty_fp_p50": 8,
+      "model_ctx_fp_p50": 5,
+      "whitelist21_fp": 8,
+      "whitelist3_fp": 8
+    },
+    "network_diag": {
+      "n": 14,
+      "model_empty_fp_p40": 14,
+      "model_ctx_fp_p40": 14,
+      "model_empty_fp_p50": 14,
+      "model_ctx_fp_p50": 12,
+      "whitelist21_fp": 14,
+      "whitelist3_fp": 14
+    },
+    "certutil": {
+      "n": 5,
+      "model_empty_fp_p40": 5,
+      "model_ctx_fp_p40": 5,
+      "model_empty_fp_p50": 5,
+      "model_ctx_fp_p50": 5,
+      "whitelist21_fp": 5,
+      "whitelist3_fp": 5
+    },
+    "sysadmin_misc": {
+      "n": 17,
+      "model_empty_fp_p40": 17,
+      "model_ctx_fp_p40": 17,
+      "model_empty_fp_p50": 17,
+      "model_ctx_fp_p50": 12,
+      "whitelist21_fp": 17,
+      "whitelist3_fp": 17
+    }
+  },
+  "per_event": [
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -NoLogo -Command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 15\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-EventLog -LogName System -Newest 50\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-EventLog -LogName Application -EntryType Error -Newest 100\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4624} -MaxEvents 20\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-ChildItem C:\\inetpub\\logs\\LogFiles -Recurse -Filter *.log | Measure-Object -Property Length -Sum\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-ChildItem D:\\Logs -Recurse -Filter *.log | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } | Remove-Item\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-Service | Where-Object Status -eq 'Stopped' | Format-Table -AutoSize\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-Content C:\\Windows\\Logs\\CBS\\CBS.log -Tail 100\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Install-Module -Name Pester -Scope CurrentUser -Force\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Install-Module -Name PSWindowsUpdate -Scope AllUsers -Repository PSGallery\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Update-Help -Module Microsoft.PowerShell.Management -ErrorAction SilentlyContinue\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -ExecutionPolicy RemoteSigned -File C:\\Scripts\\Backup-UserProfiles.ps1",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -ExecutionPolicy RemoteSigned -File \\\\fs01\\it\\scripts\\Get-DiskUsage.ps1 -Drive C",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File C:\\Scripts\\Rotate-IISLogs.ps1",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-Volume | Format-Table DriveLetter, FileSystemLabel, SizeRemaining, Size\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-ComputerInfo | Select-Object OsName, OsVersion, CsSystemType\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Test-NetConnection fs01.corp.contoso.com -Port 445\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Resolve-DnsName intranet.corp.contoso.com\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-NetIPAddress -AddressFamily IPv4 | Format-Table InterfaceAlias, IPAddress\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-SmbShare | Format-Table Name, Path, Description\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-LocalUser | Format-Table Name, Enabled, LastLogon\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-LocalGroupMember -Group Administrators\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-Acl C:\\Shares\\Finance | Format-List Owner, AccessToString\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-Counter '\\Processor(_Total)\\% Processor Time' -SampleInterval 2 -MaxSamples 5\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Restart-Service -Name Spooler -Verbose\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-AppxPackage -AllUsers | Where-Object Name -like '*Store*' | Select-Object Name, Version\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Compress-Archive -Path C:\\Logs\\*.log -DestinationPath D:\\Archive\\logs-2026-07.zip -Force\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Copy-Item -Path \\\\fs01\\deploy\\ContosoAgent.msi -Destination C:\\Temp\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-CimInstance Win32_OperatingSystem | Select-Object LastBootUpTime, FreePhysicalMemory\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Format-Table DeviceID, FreeSpace, Size\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Invoke-WebRequest -Uri https://download.microsoft.com/download/vc_redist.x64.exe -OutFile C:\\Temp\\vc_redist.x64.exe\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-ExecutionPolicy -List\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "powershell",
+      "process_name": "powershell.exe",
+      "command_line": "powershell.exe -Command \"Get-ADUser -Identity jsmith -Properties LockedOut, PasswordLastSet\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c dir /s C:\\inetpub\\logs\\LogFiles",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c del /q C:\\Windows\\Temp\\*.tmp",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c rmdir /s /q C:\\Temp\\build_old",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c copy /y C:\\Logs\\app.log D:\\Archive\\app-20260720.log",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c xcopy C:\\Data D:\\Backup\\Data /E /D /Y",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c type C:\\Windows\\Logs\\DISM\\dism.log",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c findstr /i \"error\" C:\\Windows\\Logs\\CBS\\CBS.log",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c echo %COMPUTERNAME% %USERNAME%",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c forfiles /p D:\\Logs /s /m *.log /d -30 /c \"cmd /c del @path\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c mklink /d C:\\Shares\\Current D:\\Releases\\2026.07",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c fsutil volume diskfree C:",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c chkdsk D: /scan",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c wevtutil qe Application /c:20 /f:text /rd:true",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /c ver",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "cmd",
+      "process_name": "cmd.exe",
+      "command_line": "cmd.exe /k title Patch-Window-Maintenance",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\" /v ProductName",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\" /v TimeZoneKeyName",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\" /s",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v Hidden",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\" /v Hidden /t REG_DWORD /d 1 /f",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe add \"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU\" /v NoAutoRebootWithLoggedOnUsers /t REG_DWORD /d 1 /f",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full\" /v Release",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe export \"HKLM\\SOFTWARE\\Contoso\\AppConfig\" C:\\Backup\\appconfig-20260721.reg /y",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\" /v Domain",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe add \"HKLM\\SOFTWARE\\Contoso\\Inventory\" /v LastScan /t REG_SZ /d 2026-07-21 /f",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\" /v Shell",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "reg",
+      "process_name": "reg.exe",
+      "command_line": "reg.exe query \"HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\" /v EnableLUA",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /query /fo TABLE",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /query /fo LIST /v /tn \"\\Microsoft\\Windows\\Defrag\\ScheduledDefrag\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /create /tn \"Contoso\\NightlyDbBackup\" /tr \"powershell.exe -ExecutionPolicy RemoteSigned -File C:\\Scripts\\Backup-Databases.ps1\" /sc daily /st 02:00 /ru SYSTEM",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /create /tn \"Contoso\\WeeklyLogRotation\" /tr \"C:\\Scripts\\rotate_logs.cmd\" /sc weekly /d SUN /st 03:30 /ru SYSTEM",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /create /tn \"Contoso\\AgentUpdateCheck\" /tr \"C:\\Program Files\\Contoso Agent\\updater.exe --check\" /sc daily /st 06:00",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /change /tn \"Contoso\\NightlyDbBackup\" /st 01:30",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /run /tn \"Contoso\\WeeklyLogRotation\"",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.998
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /query /tn \"Contoso\\NightlyDbBackup\" /v /fo LIST",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /end /tn \"Contoso\\WeeklyLogRotation\"",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "schtasks",
+      "process_name": "schtasks.exe",
+      "command_line": "schtasks.exe /delete /tn \"Contoso\\OldInventoryScan\" /f",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.998
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe use",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe use Z: \\\\fs01\\public /persistent:yes",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe use Z: /delete",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.998
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe view \\\\fs01",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe view /domain",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe user jsmith /domain",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe user",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe accounts",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe share",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.998
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe session",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe statistics workstation",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe start spooler",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.9976
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe stop spooler",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe localgroup Administrators",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe time \\\\dc01",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.9976
+    },
+    {
+      "category": "net",
+      "process_name": "net.exe",
+      "command_line": "net.exe config workstation",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe os get Caption,Version,BuildNumber /value",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe logicaldisk get DeviceID,Size,FreeSpace",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe product get Name,Version",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe cpu get Name,NumberOfCores,MaxClockSpeed",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe memorychip get Capacity,Speed,Manufacturer",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe qfe list brief",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.998
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe bios get SerialNumber",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe computersystem get Model,Manufacturer,TotalPhysicalMemory",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe printer get Name,PortName,PrinterStatus",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.9999
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe service where \"Name='Spooler'\" get State,StartMode",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe diskdrive get Model,Status,Size",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "wmic",
+      "process_name": "wmic.exe",
+      "command_line": "wmic.exe path win32_networkadapter where \"NetEnabled='true'\" get Name,Speed",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 0.9986
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe query Spooler",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe query state= all",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe qc wuauserv",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe queryex WinDefend",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe query BITS",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe qdescription Dhcp",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sc",
+      "process_name": "sc.exe",
+      "command_line": "sc.exe query type= service state= inactive",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe C:\\Data D:\\Backup\\Data /MIR /R:2 /W:5 /LOG:C:\\Logs\\backup-data.log",
+      "event_id": 4688,
+      "score_empty_context": 0.7594,
+      "score_context_stream": 0.7204
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe \\\\fs01\\profiles \\\\fs02\\profiles_backup /E /COPYALL /LOG+:C:\\Logs\\profile-sync.log",
+      "event_id": 1,
+      "score_empty_context": 0.515,
+      "score_context_stream": 0.4726
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe C:\\inetpub\\wwwroot D:\\Archive\\wwwroot-20260720 /E /DCOPY:T",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.7123
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe D:\\Logs \\\\fs01\\logarchive\\web01 /MOV /MINAGE:30 /NP",
+      "event_id": 1,
+      "score_empty_context": 0.515,
+      "score_context_stream": 0.4649
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe C:\\Users\\jsmith\\Documents \\\\fs01\\home\\jsmith\\Documents /E /XO",
+      "event_id": 4688,
+      "score_empty_context": 0.7663,
+      "score_context_stream": 0.709
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe D:\\SQLBackups \\\\fs02\\sqlarchive /E /Z /R:1 /W:10",
+      "event_id": 4688,
+      "score_empty_context": 0.7552,
+      "score_context_stream": 0.6942
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe C:\\ProgramData\\Contoso\\Config \\\\fs01\\configbackup\\web01 /E",
+      "event_id": 1,
+      "score_empty_context": 0.5215,
+      "score_context_stream": 0.4605
+    },
+    {
+      "category": "robocopy",
+      "process_name": "robocopy.exe",
+      "command_line": "robocopy.exe D:\\Releases\\2026.07 \\\\fs01\\deploy\\current /MIR /LOG:C:\\Logs\\deploy-sync.log",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6937
+    },
+    {
+      "category": "network_diag",
+      "process_name": "ipconfig.exe",
+      "command_line": "ipconfig.exe /all",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "network_diag",
+      "process_name": "ipconfig.exe",
+      "command_line": "ipconfig.exe /flushdns",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "network_diag",
+      "process_name": "ipconfig.exe",
+      "command_line": "ipconfig.exe /release",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "network_diag",
+      "process_name": "ipconfig.exe",
+      "command_line": "ipconfig.exe /renew",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "network_diag",
+      "process_name": "netstat.exe",
+      "command_line": "netstat.exe -ano",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6973
+    },
+    {
+      "category": "network_diag",
+      "process_name": "netstat.exe",
+      "command_line": "netstat.exe -e -s",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6976
+    },
+    {
+      "category": "network_diag",
+      "process_name": "ping.exe",
+      "command_line": "ping.exe -n 4 fs01.corp.contoso.com",
+      "event_id": 1,
+      "score_empty_context": 0.5217,
+      "score_context_stream": 0.461
+    },
+    {
+      "category": "network_diag",
+      "process_name": "ping.exe",
+      "command_line": "ping.exe -n 2 10.20.0.1",
+      "event_id": 4688,
+      "score_empty_context": 0.7669,
+      "score_context_stream": 0.7028
+    },
+    {
+      "category": "network_diag",
+      "process_name": "nslookup.exe",
+      "command_line": "nslookup.exe intranet.corp.contoso.com",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6979
+    },
+    {
+      "category": "network_diag",
+      "process_name": "tracert.exe",
+      "command_line": "tracert.exe -d fs01.corp.contoso.com",
+      "event_id": 1,
+      "score_empty_context": 0.5217,
+      "score_context_stream": 0.4615
+    },
+    {
+      "category": "network_diag",
+      "process_name": "arp.exe",
+      "command_line": "arp.exe -a",
+      "event_id": 4688,
+      "score_empty_context": 0.7667,
+      "score_context_stream": 0.7028
+    },
+    {
+      "category": "network_diag",
+      "process_name": "route.exe",
+      "command_line": "route.exe print",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6948
+    },
+    {
+      "category": "network_diag",
+      "process_name": "nltest.exe",
+      "command_line": "nltest.exe /dsgetdc:corp.contoso.com",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "network_diag",
+      "process_name": "whoami.exe",
+      "command_line": "whoami.exe /groups",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "certutil",
+      "process_name": "certutil.exe",
+      "command_line": "certutil.exe -verify C:\\Certs\\webserver01.cer",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "certutil",
+      "process_name": "certutil.exe",
+      "command_line": "certutil.exe -store My",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "certutil",
+      "process_name": "certutil.exe",
+      "command_line": "certutil.exe -store Root",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "certutil",
+      "process_name": "certutil.exe",
+      "command_line": "certutil.exe -dump C:\\Certs\\contoso-issuing-ca.crt",
+      "event_id": 4688,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "certutil",
+      "process_name": "certutil.exe",
+      "command_line": "certutil.exe -hashfile C:\\Temp\\vc_redist.x64.exe SHA256",
+      "event_id": 1,
+      "score_empty_context": 1.0,
+      "score_context_stream": 1.0
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "tasklist.exe",
+      "command_line": "tasklist.exe /svc",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.7095
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "tasklist.exe",
+      "command_line": "tasklist.exe /fi \"IMAGENAME eq chrome.exe\"",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.7131
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "taskkill.exe",
+      "command_line": "taskkill.exe /im notepad.exe /f",
+      "event_id": 1,
+      "score_empty_context": 0.5217,
+      "score_context_stream": 0.4726
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "systeminfo.exe",
+      "command_line": "systeminfo.exe",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.7092
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "gpupdate.exe",
+      "command_line": "gpupdate.exe /force",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.7091
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "gpresult.exe",
+      "command_line": "gpresult.exe /r",
+      "event_id": 1,
+      "score_empty_context": 0.5217,
+      "score_context_stream": 0.4652
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "dism.exe",
+      "command_line": "dism.exe /online /cleanup-image /restorehealth",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6984
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "sfc.exe",
+      "command_line": "sfc.exe /scannow",
+      "event_id": 4688,
+      "score_empty_context": 0.7668,
+      "score_context_stream": 0.6998
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "defrag.exe",
+      "command_line": "defrag.exe C: /O",
+      "event_id": 1,
+      "score_empty_context": 0.5065,
+      "score_context_stream": 0.4397
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "wevtutil.exe",
+      "command_line": "wevtutil.exe qe System /c:50 /rd:true /f:text",
+      "event_id": 4688,
+      "score_empty_context": 0.7653,
+      "score_context_stream": 0.6917
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "powercfg.exe",
+      "command_line": "powercfg.exe /list",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6882
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "w32tm.exe",
+      "command_line": "w32tm.exe /query /status",
+      "event_id": 1,
+      "score_empty_context": 0.5217,
+      "score_context_stream": 0.4483
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "quser.exe",
+      "command_line": "quser.exe",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6849
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "hostname.exe",
+      "command_line": "hostname.exe",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6885
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "cleanmgr.exe",
+      "command_line": "cleanmgr.exe /sagerun:1",
+      "event_id": 1,
+      "score_empty_context": 0.5065,
+      "score_context_stream": 0.433
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "shutdown.exe",
+      "command_line": "shutdown.exe /r /t 300 /c \"Monthly patching reboot\"",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.685
+    },
+    {
+      "category": "sysadmin_misc",
+      "process_name": "getmac.exe",
+      "command_line": "getmac.exe /v",
+      "event_id": 4688,
+      "score_empty_context": 0.762,
+      "score_context_stream": 0.6886
+    }
+  ]
+}

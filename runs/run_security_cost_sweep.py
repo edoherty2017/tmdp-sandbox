@@ -24,9 +24,11 @@ Usage:
 from __future__ import annotations
 
 import json
+import platform
 import random
 import sys
 import time
+from importlib.metadata import version
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -62,6 +64,17 @@ COMPROMISE_COSTS = [10.0, 50.0, 100.0, 500.0]
 
 def _p_star(c: float) -> float:
     return (BLOCK_COST - EXECUTE_STEP_COST) / c
+
+
+def _library_versions() -> dict:
+    # recorded in results.json so the sweep can be tied to an exact environment
+    return {
+        "python": platform.python_version(),
+        "scikit-learn": version("scikit-learn"),
+        "numpy": version("numpy"),
+        "pandas": version("pandas"),
+        "joblib": version("joblib"),
+    }
 
 
 def generate_scenarios(
@@ -171,7 +184,10 @@ def main() -> None:
     elapsed = time.time() - t0
     print(f"\nTotal time: {elapsed:.1f}s")
 
-    (OUT_DIR / "results.json").write_text(json.dumps(all_results, indent=2))
+    (OUT_DIR / "results.json").write_text(json.dumps({
+        "library_versions": _library_versions(),
+        "episodes": all_results,
+    }, indent=2))
 
     agg = _aggregate(all_results)
     (OUT_DIR / "aggregate.json").write_text(json.dumps(agg, indent=2))

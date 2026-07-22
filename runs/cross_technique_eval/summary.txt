@@ -1,0 +1,22 @@
+Cross-Technique Generalization Evaluation
+============================================================
+Train: cmd_stop_event_logging_controlset001_minint_key, cmd_stop_event_logging_controlset_minint_key, psh_stop_event_logging_controlset001_minint_key, psh_stop_event_logging_controlset_minint_key, reg_stop_event_logging_controlset001_minint_key, reg_stop_event_logging_controlset_minint_key
+  Events: 10451 (benign=10397, malicious=54)
+
+Test:  empire_uac_shellapi_fodhelper, cmd_service_mod_fax
+  Events: 1484 (benign=1394, malicious=90)
+
+Per-ZIP results (test set):
+  empire_uac_shellapi_fodhelper.zip:  n=1394 (ben=1323, mal=71)  precision=1.000  recall=1.000  F1=1.000  TP=71 FP=0 TN=1323 FN=0
+  cmd_service_mod_fax.zip:  n=90 (ben=71, mal=19)  precision=1.000  recall=1.000  F1=1.000  TP=19 FP=0 TN=71 FN=0
+
+Overall test set:
+  precision=1.000  recall=1.000  F1=1.000
+  TP=90  FP=0  TN=1394  FN=0
+
+Score distribution (test set):
+  Malicious events (n=90): mean=0.996
+  Benign events   (n=1394): mean=0.000
+
+In-sample (train, for reference):
+  precision=1.000  recall=1.000  F1=1.000

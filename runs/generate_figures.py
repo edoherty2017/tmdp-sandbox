@@ -140,7 +140,7 @@ def fig_pipeline_architecture() -> None:
          "12 numeric handcrafted features",
          "CalibratedClassifierCV",
          "Outputs P(malicious) ∈ [0,1]"],
-        [("CV F1", "0.997 ± 0.005"), ("ECE", "0.0002  (near-binary)")],
+        [("CV F1", "1.000 ± 0.000"), ("ECE", "0.0000  (fully binary)")],
     )
 
     draw_phase(
@@ -453,9 +453,7 @@ def fig_calibration() -> None:
     # legend entries
     legend_handles = [
         Line2D([0], [0], marker="o", color="w", markerfacecolor=C_TMDP,
-               markersize=9, label="In-distribution (large cluster)"),
-        Line2D([0], [0], marker="o", color="w", markerfacecolor=C_THRESH05,
-               markersize=6, label="In-distribution (sparse middle)"),
+               markersize=9, label="In-distribution"),
         Line2D([0], [0], marker="D", color="w", markerfacecolor=C_ORACLE,
                markersize=7, label="Cross-technique"),
         Line2D([0], [0], ls="--", color="black", alpha=0.5, label="Perfect calibration"),
@@ -472,7 +470,7 @@ def fig_calibration() -> None:
 
     # ECE annotation
     ax1.text(0.97, 0.08,
-             "ECE = 0.0002\nBrier = 0.0001",
+             "ECE = 0.0000\nBrier = 0.0000",
              ha="right", va="bottom", fontsize=8.5, color=C_TMDP, fontweight="bold",
              transform=ax1.transAxes,
              bbox=dict(facecolor="#EBF5FB", edgecolor=C_TMDP, pad=5, alpha=0.9))
@@ -492,7 +490,7 @@ def fig_calibration() -> None:
 
     ax2.bar(bin_mids, in_ns, width=bin_width * 0.85,
             color=colors_hist, edgecolor="white", linewidth=0.5,
-            alpha=0.88, label="In-distribution (n=12,409)")
+            alpha=0.88, label="In-distribution (n=11,935)")
     ax2.set_yscale("log")
     ax2.set_xlabel("P(malicious) score")
     ax2.set_ylabel("Event count  (log scale)")
@@ -501,16 +499,21 @@ def fig_calibration() -> None:
     ax2.set_xticklabels([f"{i/10:.1f}" for i in range(11)])
     ax2.set_xlim(-0.05, 1.05)
 
-    # Annotate the two dense clusters
-    ax2.text(0.05, 14000, "Benign cluster\n11,790 events",
-             ha="center", va="bottom", fontsize=8, color=C_THRESH03,
+    # Annotate the two dense clusters (axes-fraction coords: the log-scale
+    # autoscale limits move with the data, so data coords are not stable)
+    ax2.text(0.12, 0.84, "Benign cluster\n11,791 events",
+             transform=ax2.transAxes,
+             ha="center", va="top", fontsize=8, color=C_THRESH03,
              bbox=dict(facecolor="white", edgecolor=C_THRESH03, alpha=0.9, pad=3))
-    ax2.text(0.95, 14000, "Malicious\ncluster\n614 events",
+    ax2.text(0.90, 0.28, "Malicious\ncluster\n144 events",
+             transform=ax2.transAxes,
              ha="center", va="bottom", fontsize=8, color=C_DANGER,
              bbox=dict(facecolor="white", edgecolor=C_DANGER, alpha=0.9, pad=3))
-    ax2.annotate("", xy=(0.48, 6), xytext=(0.52, 6),
+    ax2.annotate("", xy=(0.42, 0.20), xytext=(0.58, 0.20),
+                 xycoords=ax2.transAxes, textcoords=ax2.transAxes,
                  arrowprops=dict(arrowstyle="<->", color="#888888", lw=1.2))
-    ax2.text(0.50, 3.5, '"Desert"\n(n=5 total)',
+    ax2.text(0.50, 0.17, '"Desert"\n(n=0 — empty)',
+             transform=ax2.transAxes,
              ha="center", va="top", fontsize=7.5, color=C_NEUTRAL,
              bbox=dict(facecolor="white", edgecolor=C_NEUTRAL, alpha=0.8, pad=2))
 
@@ -522,8 +525,8 @@ def fig_calibration() -> None:
     # legend entry showing total
     ax2.legend(loc="upper center", framealpha=0.9)
 
-    fig.suptitle("Classifier Calibration — ECE = 0.0002, Near-Binary Output Confirmed\n"
-                 "(In-distribution 5-fold OOF, n=12,409)",
+    fig.suptitle("Classifier Calibration — ECE = 0.0000, Fully Binary Output\n"
+                 "(In-distribution 5-fold OOF, n=11,935)",
                  fontsize=12, fontweight="bold", y=1.02)
     fig.tight_layout()
     out = FIGURES / "fig4_calibration.png"
@@ -574,16 +577,16 @@ def fig_sequential_block() -> None:
     ax1.yaxis.set_major_formatter(
         matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:.0%}")
     )
-    ax1.set_ylim(0, 1.28)
+    ax1.set_ylim(0, 1.45)
 
     # divider between stop and sequential groups
     ax1.axvline(2.5, color="#AAAAAA", lw=1.2, ls="--", alpha=0.6)
 
     # Group span labels in the top dead space above each group
-    ax1.text(1.0, 1.22, "← stop-on-first →",
+    ax1.text(1.0, 1.38, "← stop-on-first →",
              ha="center", va="center", fontsize=7.5, color="#888888",
              style="italic")
-    ax1.text(3.5, 1.22, "← sequential →",
+    ax1.text(3.5, 1.38, "← sequential →",
              ha="center", va="center", fontsize=7.5, color=C_TMDP,
              style="italic", fontweight="bold")
 
@@ -598,7 +601,7 @@ def fig_sequential_block() -> None:
     ax1.plot([seq_x,  seq_x],  [y_brk - tick_h, y_brk], "-", color=C_TMDP, lw=1.8, zorder=6)
     # label centred above the line
     ax1.text((stop_x + seq_x) / 2, y_brk + 0.022,
-             "+77 pp   Wilcoxon p = 9.8×10⁻⁸⁴",
+             "+77 pp — structural: 498/498 scenarios improve\n(sign test p = 1.2×10⁻¹⁵⁰, descriptive)",
              ha="center", va="bottom", fontsize=8.5, color=C_TMDP, fontweight="bold",
              bbox=dict(facecolor="white", edgecolor=C_TMDP, alpha=0.95,
                        pad=4, boxstyle="round,pad=0.3"))
@@ -623,8 +626,8 @@ def fig_sequential_block() -> None:
 
     # safety annotation
     ax2.text(0.5, 0.05,
-             "All policies maintain\nmalicious_block_rate = 1.000\n"
-             "Sequential block has zero safety cost",
+             "All five plotted policies maintain\nmalicious_block_rate = 1.000\n"
+             "T-MDP sequential block: zero safety cost",
              transform=ax2.transAxes, ha="center", va="bottom",
              fontsize=8, color=C_TMDP, fontweight="bold",
              bbox=dict(facecolor="#EBF5FB", edgecolor=C_TMDP, alpha=0.9, pad=5))
