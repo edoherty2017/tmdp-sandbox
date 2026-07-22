@@ -597,15 +597,15 @@ risky) and in the value-iteration provenance of p*; the 5 demo transcripts have 
 pending actions, because the CLI planner refuses to volunteer risky structured plans
 (itself a valid first line of defense) — gate decisions, scores, and the model's
 follow-up reactions are real, the plan proposal is not autonomous, and the 40-scenario
-gate eval is unseeded; and the judge's on-suite calibration (ECE 0.0492, six empty middle
-bins at n=40) is indicative only, per the artifact. The test suite grew from 118 to 151
-(`test_llm_judge.py` +13, `test_tooluse_agent.py` +20).
+gate eval is unseeded; and the judge's on-suite calibration (ECE 0.0492, seven empty middle
+bins at n=40) is indicative only, per the artifact. The test suite grew from 118 to 162
+(`test_llm_judge.py` +13, `test_tooluse_agent.py` +20, `test_labeling_rules.py` +11).
 
 **What remains open.** The scenario suite is hand-authored — no verbatim SafeToolBench
 items were reachable at run time — so evaluation on real SafeToolBench/Risky-Bench data
 remains future work, and the hard-benign FP rates remain constructed-set rates, not
 deployment estimates. Consolidated open items 1 (out-of-lab evaluation) and 2
 (sequential-semantics cost sweep) are unchanged. Item 4 (regression tests pinning the
-corrected EID-10 rule) is **still open**: verified 2026-07-22 against the current
-151-test suite — no test exercises the source/mask-aware EID-10 labeling behavior. Items
-5 and 6 are unchanged.
+corrected EID-10 rule) is closed as of 2026-07-22 — `tests/test_labeling_rules.py` (11
+tests) exercises the source/mask-aware EID-10 labeling behavior; see the closure note on
+the consolidated list above. Items 5 and 6 are unchanged.

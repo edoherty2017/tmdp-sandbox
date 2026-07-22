@@ -105,9 +105,9 @@ pre-execution enforcement hook would observe — nothing here executes or preven
 >    proposes" and "tool runs". Same open decision as #1: presentation, not construction.
 >
 > **To reproduce:** clone, install the pinned environment (`pip install -e '.[dev]'` —
-> `pyproject.toml` pins exact versions), `pytest` (**151 tests**, no data needed — the previous
-> 118 were verified by the review on a fresh clone; 33 LLM-judge/tool-use tests added
-> 2026-07-22). Experiment scripts need the OTRF ZIPs in
+> `pyproject.toml` pins exact versions), `pytest` (**162 tests**, no data needed — the previous
+> 118 were verified by the review on a fresh clone; 44 tests added 2026-07-22: 13 LLM-judge,
+> 20 tool-use, 11 labeling-rule). Experiment scripts need the OTRF ZIPs in
 > `data/raw/` — lists in `runs/train_classifier.py` and `runs/run_large_independent_eval.py`.
 > The two LLM experiments additionally need an authenticated `claude` CLI (see "Reproducing
 > results").
@@ -258,7 +258,7 @@ attributed to the pre-fix pipeline. The LLM-judge calibration and tool-use block
   the combined scorer at T-MDP p\*=0.40 executes **0/20 risky and blocks 0/20 safe** (Wilson
   95% CI 0–16.1% each side); rule-only executes 4/20 risky and blocks 3/20 safe — in all 7
   rule-only failures the LLM judge scored correctly and the combined score rescued the
-  decision. Judge calibration on scenario ground truth: ECE 0.0492, Brier 0.0044 (n=40, six
+  decision. Judge calibration on scenario ground truth: ECE 0.0492, Brier 0.0044 (n=40, seven
   empty middle bins — indicative only).
 - **No T-MDP-beats-threshold claim on this suite:** scenario scores are bimodal, so tmdp-p0.40
   and threshold-0.5 make identical gate decisions under every scorer. T-MDP-specific behavior
@@ -275,7 +275,7 @@ attributed to the pre-fix pipeline. The LLM-judge calibration and tool-use block
   scenario's canonical action; the gate decisions, scores, and the model's follow-up reactions
   are real, and the 40-scenario gate eval is unseeded.
 
-**Tests**: 151 passing
+**Tests**: 162 passing
 
 ## Key documents
 
@@ -343,7 +343,7 @@ prompts is a different model snapshot and may differ. Both scripts take `--limit
 small smoke run.
 
 ```bash
-python3 -m pytest -q                           # 151 tests
+python3 -m pytest -q                           # 162 tests
 python3 runs/train_classifier.py               # train classifier (needs data/raw/malicious/)
 python3 runs/run_security_batch.py             # batch experiment → runs/security_batch/
 python3 runs/run_large_independent_eval.py     # large eval → runs/large_independent_eval/
