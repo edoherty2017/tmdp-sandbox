@@ -1,5 +1,23 @@
 # T-MDP Sandbox for Catastrophic Action Prevention
 
+> [!IMPORTANT]
+> ## 📣 TEAM: READ THIS FIRST — Implementation status (verified 2026-07-21)
+>
+> **Where we are:** All three pipeline phases are implemented and tested — Phase 1 builds baseline-integrity + sliding-window context features from Windows event logs, Phase 2 is a calibrated logistic regression producing P(malicious), and Phase 3 is the T-MDP with value iteration, which derives the block threshold **p\* = 0.40 analytically from declared costs** instead of hand-tuning. Sequential-block policy and DEFER are in. **118/118 tests passing** on a fresh clone; ~3.3k lines of source, 12 experiment scripts covering every result in the report.
+>
+> **Headline results:** Large independent eval (3,839 events, 15 held-out OTRF ZIPs, 10 ATT&CK techniques, labels locked before scoring): **precision 1.000 / recall 0.947 / F1 0.973**. In-distribution CV F1 0.998; calibration ECE 0.0003 (this is what makes the cost-derived 0.40 threshold valid). Sequential block raised benign allow rate **0.209 → 0.978 at zero safety cost**. The 15,000-episode policy comparison is done.
+>
+> **Milestones:** Proposal, M1, M2, and draft report ✅ complete. The **only open item is the final report, due Aug 9**. Known future-work items: cross-event context scoring for T1003.003 (worst technique, recall 0.663), labeling coverage for object-access EventIDs (4656/4658/4663), and a fully global T-MDP over the remaining event queue.
+>
+> **⚠️ Three things we need to decide together (implementation vs. latest proposal doc):**
+> 1. The proposal specifies the risk judge as a rule-based scorer **combined with an LLM judge**; the implementation uses only the calibrated classifier, and the report defends dropping the LLM (LLM confidence scores aren't calibrated, and it would confound LLM quality with T-MDP quality). We either add an LLM-judge experiment or present the substitution as a deliberate design decision.
+> 2. The tool-use/reasoning-agent leg (Risky-Bench / SafeToolBench) isn't implemented — everything is on the cybersecurity command-line leg.
+> 3. The proposal names LangChain as the framework; the report argues against it. Same decision as #1.
+>
+> **To reproduce:** clone, `pip install -e '.[dev]'`, `pytest` (no data needed). Experiment scripts need the OTRF ZIPs in `data/raw/` — lists in `runs/train_classifier.py` and `runs/run_large_independent_eval.py`.
+
+---
+
 CS5100 Summer 2026 project: "Cost-Calibrated Termination MDPs for Security Command Classification."
 
 ## Core idea
