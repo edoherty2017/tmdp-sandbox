@@ -114,3 +114,20 @@ EVTX:  git clone https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES   → data/r
 OpTC:  gdown the red-team slice from the Drive folder (see docs/out-of-lab-evaluation.md)
 ```
 Exact ZIP lists are in `runs/train_classifier.py` and `runs/run_large_independent_eval.py`.
+
+## Direct links to the exact files we use (verified live, HTTP 200)
+
+**OTRF Security Datasets** — 206 attack ZIPs in the repo; the ones we load include:
+
+- [cmd_stop_event_logging_controlset_minint_key.zip](https://github.com/OTRF/Security-Datasets/blob/master/datasets/atomic/windows/defense_evasion/host/cmd_stop_event_logging_controlset_minint_key.zip) (training — defense evasion)
+- [empire_uac_shellapi_fodhelper.zip](https://github.com/OTRF/Security-Datasets/blob/master/datasets/atomic/windows/privilege_escalation/host/empire_uac_shellapi_fodhelper.zip) (cross-technique — UAC bypass)
+- [cmd_dumping_ntds_dit_file_ntdsutil.zip](https://github.com/OTRF/Security-Datasets/blob/master/datasets/atomic/windows/credential_access/host/cmd_dumping_ntds_dit_file_ntdsutil.zip) (eval — NTDS.dit extraction, T1003.003)
+- [empire_mimikatz_logonpasswords.zip](https://github.com/OTRF/Security-Datasets/blob/master/datasets/atomic/windows/credential_access/host/empire_mimikatz_logonpasswords.zip) (eval — mimikatz, T1003.001)
+- [covenant_psremoting_command.zip](https://github.com/OTRF/Security-Datasets/blob/master/datasets/atomic/windows/lateral_movement/host/covenant_psremoting_command.zip) (eval — PSRemoting, T1021.006)
+
+**Out-of-lab corpora:**
+
+- EVTX-ATTACK-SAMPLES: <https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES>
+- DARPA OpTC: <https://github.com/FiveDirections/OpTC-data> (data on the Google Drive linked in that repo's README)
+
+All five OTRF links and both out-of-lab repos returned HTTP 200 when checked on 2026-07-23.
