@@ -1,0 +1,190 @@
+{
+ "n_events": 1120,
+ "n_malicious": 681,
+ "n_benign": 439,
+ "model": {
+  "tp": 681,
+  "fp": 0,
+  "fn": 0,
+  "tn": 439,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0
+ },
+ "baselines": {
+  "always_malicious": {
+   "tp": 681,
+   "fp": 439,
+   "fn": 0,
+   "tn": 0,
+   "precision": 0.608,
+   "recall": 1.0,
+   "f1": 0.7562
+  },
+  "whitelist_21_process": {
+   "tp": 681,
+   "fp": 0,
+   "fn": 0,
+   "tn": 439,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0
+  },
+  "whitelist_3_process": {
+   "tp": 681,
+   "fp": 266,
+   "fn": 0,
+   "tn": 173,
+   "precision": 0.7191,
+   "recall": 1.0,
+   "f1": 0.8366
+  }
+ },
+ "whitelist_agreement": {
+  "n_agree": 1120,
+  "n_events": 1120,
+  "agreement_rate": 1.0
+ },
+ "recall_wilson_ci": [
+  0.9944,
+  1.0
+ ],
+ "precision_wilson_ci": [
+  0.9944,
+  1.0
+ ],
+ "f1_cluster_bootstrap_ci": [
+  1.0,
+  1.0
+ ],
+ "per_tactic": {
+  "AutomatedTestingTools": {
+   "tp": 315,
+   "fp": 0,
+   "fn": 0,
+   "tn": 14,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 329,
+   "whitelist_agreement": 1.0
+  },
+  "Command and Control": {
+   "tp": 3,
+   "fp": 0,
+   "fn": 0,
+   "tn": 12,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 15,
+   "whitelist_agreement": 1.0
+  },
+  "Credential Access": {
+   "tp": 39,
+   "fp": 0,
+   "fn": 0,
+   "tn": 21,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 60,
+   "whitelist_agreement": 1.0
+  },
+  "Defense Evasion": {
+   "tp": 56,
+   "fp": 0,
+   "fn": 0,
+   "tn": 28,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 84,
+   "whitelist_agreement": 1.0
+  },
+  "Discovery": {
+   "tp": 5,
+   "fp": 0,
+   "fn": 0,
+   "tn": 0,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 5,
+   "whitelist_agreement": 1.0
+  },
+  "Execution": {
+   "tp": 63,
+   "fp": 0,
+   "fn": 0,
+   "tn": 13,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 76,
+   "whitelist_agreement": 1.0
+  },
+  "Lateral Movement": {
+   "tp": 52,
+   "fp": 0,
+   "fn": 0,
+   "tn": 61,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 113,
+   "whitelist_agreement": 1.0
+  },
+  "Other": {
+   "tp": 3,
+   "fp": 0,
+   "fn": 0,
+   "tn": 1,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 4,
+   "whitelist_agreement": 1.0
+  },
+  "Persistence": {
+   "tp": 43,
+   "fp": 0,
+   "fn": 0,
+   "tn": 63,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 106,
+   "whitelist_agreement": 1.0
+  },
+  "Privilege Escalation": {
+   "tp": 101,
+   "fp": 0,
+   "fn": 0,
+   "tn": 222,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 323,
+   "whitelist_agreement": 1.0
+  },
+  "Root": {
+   "tp": 1,
+   "fp": 0,
+   "fn": 0,
+   "tn": 4,
+   "precision": 1.0,
+   "recall": 1.0,
+   "f1": 1.0,
+   "n": 5,
+   "whitelist_agreement": 1.0
+  }
+ },
+ "library_versions": {
+  "python": "3.14.3",
+  "scikit-learn": "1.9.0",
+  "numpy": "2.5.1",
+  "joblib": "1.5.3",
+  "evtx": "0.12.1"
+ }
+}

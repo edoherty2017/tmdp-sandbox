@@ -1,0 +1,38 @@
+Out-of-Lab Evaluation — EVTX-ATTACK-SAMPLES (sbousseaden)
+================================================================
+The OTRF-trained classifier applied to an independently collected
+Windows event-log corpus (different author, machines, pipeline).
+
+Corpus funnel: 37364 events in 278 .evtx files -> 1120 labeled (681 malicious, 439 benign), 36244 excluded.
+
+MODEL (OTRF-trained, p*=0.4):  P=1.0  R=1.0  F1=1.0  (TP=681 FP=0 FN=0 TN=439)
+  Recall Wilson 95% CI:    [0.9944, 1.0]
+  Precision Wilson 95% CI: [0.9944, 1.0]
+  F1 cluster-bootstrap CI (files resampled): [1.0, 1.0]
+
+Trivial baselines (same ground truth):
+  always_malicious       P=0.608 R=1.000 F1=0.756 (FP=439, FN=0)
+  whitelist_21_process   P=1.000 R=1.000 F1=1.000 (FP=0, FN=0)
+  whitelist_3_process    P=0.719 R=1.000 F1=0.837 (FP=266, FN=0)
+
+*** LABEL-FREE HEADLINE — does the model still equal a whitelist on out-of-lab data? ***
+  Model vs 21-process whitelist agreement: 1120/1120 = 100.0%
+  (OTRF held-out was 100.0%. Lower here = genuine transferable signal; still ~100% = learned nothing beyond process names.)
+
+Per-tactic (model):
+  tactic                           n      P      R     F1  wl_agree
+  AutomatedTestingTools          329  1.000  1.000  1.000    100.0%
+  Command and Control             15  1.000  1.000  1.000    100.0%
+  Credential Access               60  1.000  1.000  1.000    100.0%
+  Defense Evasion                 84  1.000  1.000  1.000    100.0%
+  Discovery                        5  1.000  1.000  1.000    100.0%
+  Execution                       76  1.000  1.000  1.000    100.0%
+  Lateral Movement               113  1.000  1.000  1.000    100.0%
+  Other                            4  1.000  1.000  1.000    100.0%
+  Persistence                    106  1.000  1.000  1.000    100.0%
+  Privilege Escalation           323  1.000  1.000  1.000    100.0%
+  Root                             5  1.000  1.000  1.000    100.0%
+
+CAVEAT: labels come from auto_label_event, which shares vocabulary with the model's features (see header). P/R/F1 are therefore not independent of the labeler; the whitelist-agreement rate above is the label-free signal.
+
+Library versions: {'python': '3.14.3', 'scikit-learn': '1.9.0', 'numpy': '2.5.1', 'joblib': '1.5.3', 'evtx': '0.12.1'}
