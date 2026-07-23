@@ -1,0 +1,51 @@
+{
+ "corpus": "DARPA OpTC \u2014 AIA-201-225, 2019-09-23 ~09:06-09:31 (pre-attack, benign)",
+ "n_scored": 3879,
+ "n_hosts": 1,
+ "whitelist_agreement": {
+  "n_agree": 3877,
+  "n_events": 3879,
+  "rate": 0.9995
+ },
+ "model_flag_rate": {
+  "n_flagged_malicious": 1676,
+  "rate": 0.4321,
+  "ci": [
+   0.4166,
+   0.4477
+  ]
+ },
+ "auto_label_confusion": {
+  "tp": 33,
+  "fp": 0,
+  "fn": 0,
+  "tn": 1035,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0
+ },
+ "by_eventid": {
+  "1": {
+   "n": 69,
+   "flagged_malicious": 38
+  },
+  "7": {
+   "n": 1933,
+   "flagged_malicious": 791
+  },
+  "10": {
+   "n": 1781,
+   "flagged_malicious": 842
+  },
+  "13": {
+   "n": 96,
+   "flagged_malicious": 5
+  }
+ },
+ "library_versions": {
+  "python": "3.14.3",
+  "scikit-learn": "1.9.0",
+  "numpy": "2.5.1",
+  "joblib": "1.5.3"
+ }
+}

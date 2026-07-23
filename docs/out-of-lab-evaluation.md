@@ -43,12 +43,43 @@ expose the model's blind spot (attacks that run under whitelisted processes, e.g
 lsass/svchost cases that sank the OTRF eval). A content-signature labeler, independent
 of process name, is the next refinement and would make P/R/F1 meaningful.
 
-## 2. DARPA OpTC — feasible WITHOUT the full 1 TB (not run in this sandbox)
+## 2. DARPA OpTC — PARTIALLY RUN (real enterprise telemetry, benign window)
+
+Update 2026-07-23: we **did** run OpTC on a real slice. Google Drive was reachable
+via `gdown`, so we pulled the `ecar/evaluation/23Sep19-red/AIA-201-225` main chunk
+(110 MB, downloaded in seconds) — the host range containing **SysClient0201**, the
+Day-1 red-team target. Script: `runs/run_optc_outoflab_eval.py`; artifacts:
+`runs/optc_outoflab_eval/`. The eCAR→`EventSpec` adapter (PROCESS/CREATE→EID1,
+PROCESS/OPEN→EID10, MODULE/LOAD→EID7, REGISTRY→EID13) is in the script.
+
+**What this slice covers:** SysClient0201 on 2019-09-23, ~09:06–09:31 — a **pre-attack
+benign window** (the red team began at 11:23 per the ground-truth PDF). So this is a
+real-world **false-positive / whitelist-equivalence** test on genuine enterprise
+telemetry — the strongest of the three corpora for that purpose (OTRF and EVTX are both
+attack-focused simulations; this is real background activity).
+
+**Result (3,879 scored process/module/registry events):**
+
+> - **Label-free headline — model vs 21-process whitelist agreement: 3,877 / 3,879 =
+>   99.95%.** Whitelist-equivalence holds on a THIRD, real-world corpus.
+> - **Model flags 1,676 / 3,879 = 43.2% of events as malicious** (95% Wilson CI
+>   41.7–44.8%). This window is benign, so **every one of those is a real-world false
+>   positive on genuine enterprise activity** — the deployment-FP concern, now measured
+>   on real data rather than the 152 hand-authored commands of §6.7.2. A whitelist-shaped
+>   detector drowns in false positives against real enterprise process diversity.
+
+**Not yet done (honest):** attack *detection* on OpTC. The red-team window (11:23–15:30)
+lives in the 2.2 GB `-last` chunk, which throttled to ~1.3 MB/s and reset mid-download in
+this sandbox. The harness is wired to score it; a stable pull (Colab in-place, or a
+resumed `gdown`) plus frozen labels from the red-team log (host/time/indicator-scoped) is
+all that remains to get an OpTC attack-detection P/R.
+
+### Reproducing / extending (for whoever finishes the attack-detection run)
 
 DARPA Operationally Transparent Cyber (OpTC) is the stronger target — real red-team
-activity with authoritative ground truth. We did not run it *here* (this sandbox has no
-Google-Drive access), and we will not fabricate numbers for it. But the "1 TB download"
-is not actually the blocker. Hosting details, verified 2026-07-23:
+activity with authoritative ground truth. The benign-window run above is done; the
+attack-detection run is what remains. The "1 TB download" is not the blocker. Hosting
+details, verified 2026-07-23:
 
 - The public repo `github.com/FiveDirections/OpTC-data` is **documentation only**
   (`OpTCRedTeamGroundTruth.pdf`, `README.md`, `ecar.md`, `errata.md`) — no event data.

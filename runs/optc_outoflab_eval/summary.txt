@@ -1,0 +1,22 @@
+Out-of-Lab Evaluation #2 — DARPA OpTC (real enterprise telemetry)
+==================================================================
+DARPA OpTC — AIA-201-225, 2019-09-23 ~09:06-09:31 (pre-attack, benign)
+Scored 3879 process/module/registry events across 1 real hosts (SysClient0201-0225).
+
+*** LABEL-FREE HEADLINE — model vs 21-process whitelist on REAL enterprise telemetry ***
+  Agreement: 3877/3879 = 99.95%
+  (OTRF held-out 100.0%; EVTX-ATTACK-SAMPLES 100.0%. Third corpus, real-world data.)
+
+Model flags malicious: 1676/3879 = 43.21%  (95% Wilson CI 41.66-44.77%)
+  This window is benign (pre-attack, per red-team ground truth), so every malicious flag here is a real-world FALSE POSITIVE on genuine enterprise
+  activity — the deployment-FP concern, now measured on real data.
+
+By synthetic EventID (1=proc-create 10=proc-access 7=module 13=registry):
+  EID  1:     69 events,     38 flagged malicious
+  EID  7:   1933 events,    791 flagged malicious
+  EID 10:   1781 events,    842 flagged malicious
+  EID 13:     96 events,      5 flagged malicious
+
+CAVEATS: (1) benign window only — attack detection (red window 11:23-15:30) needs the 2.2GB -last chunk, wired but not downloaded here. (2) auto_label labels share vocabulary with model features (disclosed); the label-free whitelist-agreement above is the honest signal. (3) PROCESS/OPEN target process is a UUID not resolved to a name, so the EID-10 cred-theft branch cannot fire on OpTC.
+
+Library versions: {'python': '3.14.3', 'scikit-learn': '1.9.0', 'numpy': '2.5.1', 'joblib': '1.5.3'}
