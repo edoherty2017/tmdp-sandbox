@@ -135,6 +135,31 @@ The scripted threshold baseline uses `0.5`. With DEFER enabled, the deployed pol
 
 The T-MDP adapter is a finite-horizon SSP over one command at a time. Each per-command model has at most one inspection opportunity (`remaining_budget=1`). Because the reachable state space is finite and all policies are proper (terminal states are reachable from every nonterminal state), value iteration converges. This is a statement about the implemented sandbox model, not a general proof.
 
+### 3.6 Proposal-term mapping and per-agent instantiations
+
+The course proposal and its feedback use a vocabulary (history parser, context builder, risk judge, contextual risk score, sampled risk scores) that this report otherwise renders in implementation terms. This section states the mapping explicitly and gives the T-MDP instantiation for each of the two agents.
+
+**Where risk enters the specification, and why.** Risk enters the T-MDP in exactly one place: the belief `p_malicious` (Section 3.2), which parameterizes the EXECUTE transition to `G_failure` (Section 3.3). It deliberately does not enter the cost function — costs are fixed constants describing how bad each outcome is; the belief describes how likely the bad outcome is. This separation is what makes the threshold derivable (`p* = (c_block − c_execute)/c_compromise`, Section 3.4) rather than hand-tuned, and it is what lets the risk estimator be swapped (classifier, rule scorer, LLM judge, or a weighted combination) without re-deriving the policy.
+
+**Proposal workflow → implementation.** The proposal's pipeline "history parser → context builder → risk judge → combined risk score → T-MDP policy → verdict" maps onto the implementation as follows:
+
+| Proposal term | Command-line agent (telemetry replay) | Tool-use agent (LangChain) |
+|---|---|---|
+| History parser | Sliding window over the preceding k=10 events (Section 4.1, Phase 1) | Extraction of the agent's conversation history and the pending tool call (`tooluse_agent.py`) |
+| Context builder | Phase 1 feature vector: baseline/LOLBin/obfuscation flags + context-window aggregates | Rendered context block: original request, prior steps and results, pending call description |
+| Risk judge | Phase 2 calibrated classifier → `P(malicious)` (Section 4.1); compared head-to-head against the LLM judge in Section 6.8 | Combined judge: 0.4·rule-based scorer + 0.6·LLM judge (claude-opus-4-8), rule-only fallback on abstention (Section 5.7) |
+| Contextual risk score | The classifier's calibrated probability for the event in its window | The combined weighted-mean score for the pending call |
+| Context-based rubric | — (structured features replace a rubric) | The judge prompt: pending action + trajectory context, assessed against five named risk families (destructive, exfiltration, credential access, privacy, financial) for a calibrated probability in [0, 1] (Section 5.6) |
+| T-MDP policy → verdict | Phase 3 value iteration → EXECUTE / BLOCK(_EVENT) / DEFER | Same value-iteration machinery, verdicts rendered as PROCEED / STOP / DEFER |
+
+In both agents the pipeline components perform state estimation, the cost model defines the objective, and the T-MDP supplies the precomputed optimal mapping from estimated state to action. The risk judge is *not* a reward model: it supplies the belief, never the costs.
+
+**Command-line agent instantiation.** An episode is a sequence of recorded OTRF Sysmon events (Section 4.4; 20 events per scenario) replayed offline — no live execution. The state is the position in the sequence plus the belief for the current event, produced by the Phase 2 classifier; actions, transitions, and costs are exactly Sections 3.3–3.4, with `BLOCK_EVENT` (Section 3.1) as the per-event block used by the sequential architecture (Section 6.6). Ground-truth labels in the dataset score every decision.
+
+**Tool-use agent instantiation.** Each pending tool call is one single-candidate T-MDP decision (Section 3.1's per-command model, unchanged): the belief is the combined 0.4·rule + 0.6·LLM score, and the same costs (10, 5, 1) yield the same p\* = 0.40. The agent's reasoning steps are an explicit LangChain message/tool loop over a sandboxed mock search tool and six mock effect tools (Section 5.7); the gate sits between "model proposes a tool call" and "tool runs." The evaluation targets SafeToolBench's prospective pre-execution framing via 40 hand-authored SafeToolBench-style scenarios (Section 6.9) — the benchmark itself has not been run.
+
+**Sampled risk scores for initial algorithm testing.** Before either estimator existed, the value-iteration algorithm was exercised with synthetic risk inputs whose generating process is known, so correct optimal behavior is checkable independently of any dataset: the file-deletion sandbox of Appendix B (controlled ambiguity levels, seeded Gaussian perturbation σ ∈ {0.0, 0.15}) plays this role, and the seeded noise model of Section 4.3 carries the same idea into the security replay experiments. This is the proposal's "sampled risk scores from a known distribution used for initial testing": validate threshold location, defer band, and convergence on distributions with known ground truth, then swap in real estimated scores without changing the algorithm.
+
 ## 4. Methods
 
 ### 4.1 Three-phase pipeline
