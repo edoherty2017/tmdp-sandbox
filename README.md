@@ -67,6 +67,56 @@ behind every claim: **`runs/*/summary.txt`**.
 `classifier.py` (Phase 2) · `llm_judge.py` (LLM judge via `claude` CLI) ·
 `tooluse_agent.py` (LangChain agent + safety gate).
 
+## Architecture (class diagrams)
+
+How the modules fit together — every track funnels into the same T-MDP core:
+
+![Package architecture](docs/diagrams/0-overview.png)
+
+Arrow legend: solid diamond = owns/contains · hollow-arrow dashed = implements · plain dashed = uses/creates ·
+`?` = may be `None`. Boxes marked `«module»` are function-only modules. Note: `security_runner.py` and
+`security_log.py` each define an unrelated class named `SecurityEpisodeResult`; the diagrams suffix them by module.
+
+### Core T-MDP decision engine
+`tmdp_model.py` · `value_iteration.py` · `risk_noise.py` — the finite state space, value iteration, and calibrated inspection observations.
+
+![Core T-MDP engine](docs/diagrams/1-core-tmdp-engine.png)
+
+### File-deletion sandbox — scenarios & risk assessment
+`scenario.py` · `scenario_generator.py` · `risk.py` — scenario data model and the `DeleteRiskAssessor` protocol with its three implementations.
+
+![Sandbox scenarios and risk assessors](docs/diagrams/2-sandbox-scenarios-risk.png)
+
+### File-deletion sandbox — episode execution
+`runner.py` · `actions.py` · `batch.py` — `run_episode` replays a `ScriptedPolicy` against a sandboxed file tree; `batch` sweeps scenarios and policies.
+
+![Sandbox episode execution](docs/diagrams/3-sandbox-episode-execution.png)
+
+### Security-event ML pipeline — from raw logs to risk scores
+`event_spec.py` · `preprocessing.py` · `context_window.py` · `classifier.py` — dataset loading, sliding-window features, and the calibrated classifier.
+
+![ML pipeline feature extraction](docs/diagrams/4-ml-pipeline-features.png)
+
+### Security-event ML pipeline — policy factories & replay
+`policies.py` · `security_runner.py` — each factory scores events, solves a T-MDP per event, and freezes decisions into a `SecurityScriptedPolicy`.
+
+![ML pipeline policies and replay](docs/diagrams/5-ml-pipeline-policies.png)
+
+### Narrative security-log track
+`security_log.py` · `security_baselines.py` — the earlier self-contained incident-scenario experiment.
+
+![Narrative security-log track](docs/diagrams/6-narrative-security-log.png)
+
+### LLM safety gate
+`tooluse_agent.py` · `llm_judge.py` — rule + LLM scoring combined into a T-MDP execute/defer/block decision per tool call.
+
+![LLM safety gate](docs/diagrams/7-llm-safety-gate.png)
+
+### Tool-use agent loop
+`tooluse_agent.py` — the LangChain agent whose every proposed tool call passes through the gate; traces are recorded as `AgentRun`.
+
+![Tool-use agent loop](docs/diagrams/8-tooluse-agent-loop.png)
+
 ## Reproducing
 
 ```bash
