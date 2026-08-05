@@ -236,11 +236,29 @@ attributed to the pre-fix pipeline. The LLM-judge calibration and tool-use block
   the rule scorer alone would block at 0.85); all five ended in a final answer.
 - Caveats: authored scenarios, not deployment traffic and not verbatim SafeToolBench items
   (only the paper's abstract/figure was reachable at run time; style reference: Xia et al.,
-  Findings of EMNLP 2025) — rates characterize the gate on this constructed set only. The
+  Findings of EMNLP 2025; the corpus was later released — see the verbatim-item eval below) —
+  rates characterize the gate on this constructed set only. The
   demo's pending actions are **seeded**: the CLI planner by design refuses to volunteer risky
   tool-call plans (itself a valid first line of defense), so the harness supplies each
   scenario's canonical action; the gate decisions, scores, and the model's follow-up reactions
   are real, and the 40-scenario gate eval is unseeded.
+
+**SafeToolBench verbatim-item eval (new 2026-08-03, `runs/safetoolbench_eval/`)**
+- The SafeToolBench corpus (BITHLP/SafeToolBench @ `ffdef6e782b0`) became publicly reachable
+  after the July run, so the existing gate (rule scorer + Claude judge + T-MDP at p\*=0.40)
+  was run on all **1,000 verbatim items**. Each item ships its proposed API call(s), so the
+  gate scores exactly the benchmark's pending calls with no planner step; an item is flagged
+  if any call is STOPped.
+- Rule-only flags **2.8%** (28/1000). Combined 0.4·rule + 0.6·llm flags **9.0%** (18/200,
+  seeded stratified sample; zero LLM null responses; median judge score 0.02).
+- **Not comparable to published SafeToolBench scores:** every released item is risky-labeled
+  under a prospective-risk rubric that measures risk *awareness*; our metric is a
+  catastrophe-cost *block* decision, and most items are ordinary-looking requests with latent
+  risk that a calibrated judge scores far below a catastrophe threshold.
+- **Cost dial demonstrated on real benchmark data:** raising c_compromise 10 → 50 → 100
+  (p\* 0.40 → 0.08 → 0.04) moves the combined flag rate **9.0% → 23.0% → 40.0%**, while
+  rule-only jumps from 2.8% straight to 100% once p\* falls below the 0.05 rule base score —
+  the combined score is tunable; the rule score is not.
 
 **Tests**: 162 passing
 
@@ -264,6 +282,7 @@ attributed to the pre-fix pipeline. The LLM-judge calibration and tool-use block
 | `runs/run_hard_benign_eval.py` | Hard-benign FP eval (152 hand-authored admin events) |
 | `runs/run_llm_judge_calibration.py` | LLM-judge vs classifier calibration head-to-head (542 events; requires authenticated `claude` CLI) |
 | `runs/run_tooluse_eval.py` | Tool-use leg: 40-scenario gate eval + 5 LangChain agent demos (requires authenticated `claude` CLI) |
+| `runs/run_safetoolbench_eval.py` | Verbatim SafeToolBench gate eval (1,000 items + cost dial; requires authenticated `claude` CLI for the combined arm) |
 | `runs/generate_figures.py` | Generate all 5 publication figures → `docs/figures/` |
 
 The two LLM scripts shell out to the local `claude` CLI (`claude-opus-4-8`; no API key). Model
