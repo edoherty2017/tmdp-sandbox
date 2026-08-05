@@ -34,6 +34,9 @@ p* = (c_block − c_execute) / c_compromise      # c_block=5, c_execute=1, c_com
 - **LLM judge works:** better calibrated than the ML classifier (ECE 0.066 vs 0.345; 5.3% vs
   **100%** false positives on benign admin commands).
 - **Sequential block:** raises benign-allow from 0.21 → 0.98 with no loss in blocking attacks.
+- **Cost dial on real benchmark data:** on all 1,000 verbatim SafeToolBench items, raising
+  c_compromise 10 → 50 → 100 moves the combined flag rate 9.0% → 23.0% → 40.0% (rule-only
+  jumps 2.8% → 100%) — the threshold is an output of the cost model, not a tuned input.
 
 **❌ What doesn't (and we say so plainly)**
 - The **ML attack-classifier is behaviorally a 21-process whitelist** — F1=0.19 on OTRF, and
