@@ -450,8 +450,27 @@ def main() -> None:
                         help="parallel CLI calls (clamped to 1..5)")
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help=f"judge model id (default {DEFAULT_MODEL})")
+    parser.add_argument("--out-dir", default=None,
+                        help="output directory (default runs/llm_judge_calibration; use a "
+                             "per-model dir for experimental judges so the committed "
+                             "baseline artifacts are never overwritten)")
+    parser.add_argument("--external-responses", default=None,
+                        help="path to a pre-computed responses.jsonl in the LLMJudge cache "
+                             "schema ({key, model, p_malicious, rationale, raw_response}, "
+                             "key = sha256(model NUL prompt)); scoring then replays entirely "
+                             "from this file with no claude CLI calls")
     args = parser.parse_args()
     concurrency = max(1, min(5, args.concurrency))
+
+    global OUT_DIR, CACHE_PATH, PROMPTS_PATH
+    if args.out_dir is not None:
+        OUT_DIR = Path(args.out_dir)
+        CACHE_PATH = OUT_DIR / "responses.jsonl"
+        PROMPTS_PATH = OUT_DIR / "prompts.jsonl"
+    if args.external_responses is not None:
+        CACHE_PATH = Path(args.external_responses)
+        if not CACHE_PATH.exists():
+            raise SystemExit(f"--external-responses file not found: {CACHE_PATH}")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     rng = random.Random(SEED)

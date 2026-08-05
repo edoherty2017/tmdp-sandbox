@@ -13,6 +13,7 @@ runs/*/*
 !runs/*/summary.txt
 !runs/*/mcnemar.json
 !runs/*/ground_truth_labels.json
+!runs/oss_judges/prompts.jsonl
 runs/*.jsonl
 runs/*.html
 runs/*.xml
