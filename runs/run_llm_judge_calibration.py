@@ -123,9 +123,14 @@ def _make_item(
     }
 
 
+JUDGE_WINDOW = WINDOW_SIZE  # judge-prompt context only; the classifier always uses WINDOW_SIZE
+
+
 def _judge_context(item: dict) -> list[EventSpec]:
-    """Real k=10 preceding events in the item's source sequence order."""
-    return list(item["seq"][max(0, item["idx"] - WINDOW_SIZE): item["idx"]])
+    """Real preceding events (judge prompt only; k = JUDGE_WINDOW, default 10)."""
+    if JUDGE_WINDOW <= 0:
+        return []
+    return list(item["seq"][max(0, item["idx"] - JUDGE_WINDOW): item["idx"]])
 
 
 def _load_train_candidates() -> tuple[list[dict], dict[str, tuple[EventSpec, ...]]]:
@@ -459,8 +464,18 @@ def main() -> None:
                              "schema ({key, model, p_malicious, rationale, raw_response}, "
                              "key = sha256(model NUL prompt)); scoring then replays entirely "
                              "from this file with no claude CLI calls")
+    parser.add_argument("--judge-window", type=int, default=WINDOW_SIZE,
+                        help="preceding-event context size for the JUDGE PROMPT only "
+                             f"(default {WINDOW_SIZE}); the classifier's feature window is "
+                             "always k=10, so this isolates the prompt-context variable")
+    parser.add_argument("--export-prompts-only", action="store_true",
+                        help="write prompts.jsonl for the event plan and exit before any "
+                             "scoring (for external/offline judge runners)")
     args = parser.parse_args()
     concurrency = max(1, min(5, args.concurrency))
+
+    global JUDGE_WINDOW
+    JUDGE_WINDOW = max(0, args.judge_window)
 
     global OUT_DIR, CACHE_PATH, PROMPTS_PATH
     if args.out_dir is not None:
@@ -514,6 +529,11 @@ def main() -> None:
             }) + "\n")
     print(f"Prompts logged -> {PROMPTS_PATH}")
 
+    if args.export_prompts_only:
+        print(f"--export-prompts-only: wrote {len(items)} prompts "
+              f"(judge_window={JUDGE_WINDOW}); exiting before scoring.")
+        return
+
     print(f"Scoring with LLM judge (model={args.model}, concurrency={concurrency}) ...")
     llm_results = _score_llm(judge, items, concurrency)
 
@@ -563,6 +583,7 @@ def main() -> None:
             "claude_cli_version": _claude_cli_version(judge.claude_bin),
             "seed": SEED,
             "window_size": WINDOW_SIZE,
+            "judge_window": JUDGE_WINDOW,
             "n_bins": N_BINS,
             "thresholds": list(THRESHOLDS),
             "concurrency": concurrency,

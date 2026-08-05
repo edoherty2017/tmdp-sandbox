@@ -58,11 +58,12 @@ def parse_reply(text: str) -> tuple[float | None, str]:
     return max(0.0, min(1.0, p)), str(obj.get("rationale", ""))
 
 
-def run_model(model_id: str, prompts: list[dict], limit: int | None) -> None:
+def run_model(model_id: str, prompts: list[dict], limit: int | None,
+              suffix: str = "") -> None:
     from mlx_lm import generate, load
 
     slug = model_id.replace("/", "_")
-    out_path = OUT_DIR / f"responses_{slug}.jsonl"
+    out_path = OUT_DIR / f"responses_{slug}{suffix}.jsonl"
     done: set[str] = set()
     if out_path.exists():
         for line in out_path.read_text(encoding="utf-8").splitlines():
@@ -128,13 +129,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--prompts", default=str(PROMPTS_PATH),
+                        help="prompt set to score (e.g. prompts_k0.jsonl for the "
+                             "judge-context sweep); output files are suffixed with the "
+                             "prompt-set name when it is not the default")
     args = parser.parse_args()
 
+    prompts_path = Path(args.prompts)
+    suffix = ""
+    if prompts_path.resolve() != PROMPTS_PATH.resolve():
+        suffix = "_" + prompts_path.stem.replace("prompts_", "")
     prompts = [json.loads(l) for l in
-               PROMPTS_PATH.read_text(encoding="utf-8").splitlines() if l.strip()]
-    print(f"{len(prompts)} prompts loaded")
+               prompts_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    print(f"{len(prompts)} prompts loaded from {prompts_path.name}")
     for model_id in args.models:
-        run_model(model_id, prompts, args.limit)
+        try:
+            run_model(model_id, prompts, args.limit, suffix)
+        except Exception as exc:  # keep the queue alive past one bad model
+            print(f"!!! {model_id} FAILED: {type(exc).__name__}: {exc}", flush=True)
 
 
 if __name__ == "__main__":
