@@ -1,0 +1,236 @@
+LLM-Judge Calibration Experiment (report section 4.5, measured)
+======================================================================
+
+Model: mlx-community/Qwen2.5-1.5B-Instruct-4bit via claude CLI (2.1.223 (Claude Code))
+Classifier: models/ml_classifier_logistic.joblib (k=10)
+Seed: 42  |  bins: 10 (same as run_calibration_eval.py)
+
+Subsets: a) train_pool  = auto_label labels (circular for classifier,
+            independent for LLM judge)
+         b) hard_benign = 152 hand-authored benign admin events
+         c) eval_holdout = label_by_technique labels, stratified sample
+
+Head-to-head overview (LLM judge | classifier):
+  Subset             n  null             ECE           Brier         desert%
+  ------------------------------------------------------------------------
+  train_pool       240    23 0.3666 | 0.0005 0.3819 | 0.0000    17.5 |   0.0
+  hard_benign      152    42 0.6576 | 0.9188 0.5897 | 0.8705    34.5 |  21.7
+  eval_holdout     150    35 0.8207 | 0.3506 0.8176 | 0.1594     2.6 |  92.7
+  overall          542   100 0.5422 | 0.3456 0.5470 | 0.2883    17.9 |  31.7
+
+── train_pool (n=240: 120 malicious, 120 benign; LLM null=23, cached=240) ──────────
+  LLM judge (n=217):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]          (empty)
+    [0.1–0.2]      38    0.1000    0.2895    0.1895
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]          (empty)
+    [0.5–0.6]          (empty)
+    [0.6–0.7]          (empty)
+    [0.7–0.8]          (empty)
+    [0.8–0.9]          (empty)
+    [0.9–1.0]     179    0.9796    0.5754    0.4042
+    ECE=0.3666  MCE=0.4042  Brier=0.3819
+    histogram counts: [0, 38, 0, 0, 0, 0, 0, 0, 0, 179]
+    mass in 0.1–0.9 desert: 17.5%
+  Classifier (n=240):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]     120    0.0000    0.0000    0.0000
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]          (empty)
+    [0.5–0.6]          (empty)
+    [0.6–0.7]          (empty)
+    [0.7–0.8]          (empty)
+    [0.8–0.9]          (empty)
+    [0.9–1.0]     120    0.9990    1.0000    0.0010
+    ECE=0.0005  MCE=0.0010  Brier=0.0000
+    histogram counts: [120, 0, 0, 0, 0, 0, 0, 0, 0, 120]
+    mass in 0.1–0.9 desert: 0.0%
+  Classifier (matched to LLM-valid) (n=217):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]     103    0.0000    0.0000    0.0000
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]          (empty)
+    [0.5–0.6]          (empty)
+    [0.6–0.7]          (empty)
+    [0.7–0.8]          (empty)
+    [0.8–0.9]          (empty)
+    [0.9–1.0]     114    0.9989    1.0000    0.0011
+    ECE=0.0006  MCE=0.0011  Brier=0.0000
+    histogram counts: [103, 0, 0, 0, 0, 0, 0, 0, 0, 114]
+    mass in 0.1–0.9 desert: 0.0%
+
+── hard_benign (n=152: 0 malicious, 152 benign; LLM null=42, cached=152) ──────────
+  LLM judge (n=110):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]          (empty)
+    [0.1–0.2]      33    0.1000    0.0000    0.1000
+    [0.2–0.3]       5    0.2000    0.0000    0.2000
+    [0.3–0.4]          (empty)
+    [0.4–0.5]          (empty)
+    [0.5–0.6]          (empty)
+    [0.6–0.7]          (empty)
+    [0.7–0.8]          (empty)
+    [0.8–0.9]          (empty)
+    [0.9–1.0]      72    0.9450    0.0000    0.9450
+    ECE=0.6576  MCE=0.9450  Brier=0.5897
+    histogram counts: [0, 33, 5, 0, 0, 0, 0, 0, 0, 72]
+    mass in 0.1–0.9 desert: 34.5%
+  Classifier (n=152):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]          (empty)
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]      10    0.4579    0.0000    0.4579
+    [0.5–0.6]          (empty)
+    [0.6–0.7]      14    0.6929    0.0000    0.6929
+    [0.7–0.8]       9    0.7098    0.0000    0.7098
+    [0.8–0.9]          (empty)
+    [0.9–1.0]     119    0.9999    0.0000    0.9999
+    ECE=0.9188  MCE=0.9999  Brier=0.8705
+    histogram counts: [0, 0, 0, 0, 10, 0, 14, 9, 0, 119]
+    mass in 0.1–0.9 desert: 21.7%
+  Classifier (matched to LLM-valid) (n=110):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]          (empty)
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]      10    0.4579    0.0000    0.4579
+    [0.5–0.6]          (empty)
+    [0.6–0.7]      11    0.6925    0.0000    0.6925
+    [0.7–0.8]       7    0.7100    0.0000    0.7100
+    [0.8–0.9]          (empty)
+    [0.9–1.0]      82    0.9999    0.0000    0.9999
+    ECE=0.9014  MCE=0.9999  Brier=0.8443
+    histogram counts: [0, 0, 0, 0, 10, 0, 11, 7, 0, 82]
+    mass in 0.1–0.9 desert: 25.4%
+
+── eval_holdout (n=150: 18 malicious, 132 benign; LLM null=35, cached=150) ──────────
+  LLM judge (n=115):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]          (empty)
+    [0.1–0.2]       3    0.1000    0.3333    0.2333
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]          (empty)
+    [0.5–0.6]          (empty)
+    [0.6–0.7]          (empty)
+    [0.7–0.8]          (empty)
+    [0.8–0.9]          (empty)
+    [0.9–1.0]     112    0.9882    0.1518    0.8364
+    ECE=0.8207  MCE=0.8364  Brier=0.8176
+    histogram counts: [0, 3, 0, 0, 0, 0, 0, 0, 0, 112]
+    mass in 0.1–0.9 desert: 2.6%
+  Classifier (n=150):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]       7    0.0000    0.1429    0.1429
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]     130    0.4079    0.0308    0.3771
+    [0.5–0.6]          (empty)
+    [0.6–0.7]       5    0.6809    1.0000    0.3191
+    [0.7–0.8]       3    0.7377    1.0000    0.2623
+    [0.8–0.9]       1    0.8423    1.0000    0.1577
+    [0.9–1.0]       4    0.9937    1.0000    0.0063
+    ECE=0.3506  MCE=0.3771  Brier=0.1594
+    histogram counts: [7, 0, 0, 0, 130, 0, 5, 3, 1, 4]
+    mass in 0.1–0.9 desert: 92.7%
+  Classifier (matched to LLM-valid) (n=115):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]       7    0.0000    0.1429    0.1429
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]      95    0.4089    0.0421    0.3668
+    [0.5–0.6]          (empty)
+    [0.6–0.7]       5    0.6809    1.0000    0.3191
+    [0.7–0.8]       3    0.7377    1.0000    0.2623
+    [0.8–0.9]       1    0.8423    1.0000    0.1577
+    [0.9–1.0]       4    0.9937    1.0000    0.0063
+    ECE=0.3340  MCE=0.3668  Brier=0.1580
+    histogram counts: [7, 0, 0, 0, 95, 0, 5, 3, 1, 4]
+    mass in 0.1–0.9 desert: 90.4%
+
+── overall (n=542: 138 malicious, 404 benign; LLM null=100, cached=542) ──────────
+  LLM judge (n=442):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]          (empty)
+    [0.1–0.2]      74    0.1000    0.1622    0.0622
+    [0.2–0.3]       5    0.2000    0.0000    0.2000
+    [0.3–0.4]          (empty)
+    [0.4–0.5]          (empty)
+    [0.5–0.6]          (empty)
+    [0.6–0.7]          (empty)
+    [0.7–0.8]          (empty)
+    [0.8–0.9]          (empty)
+    [0.9–1.0]     363    0.9754    0.3306    0.6448
+    ECE=0.5422  MCE=0.6448  Brier=0.5470
+    histogram counts: [0, 74, 5, 0, 0, 0, 0, 0, 0, 363]
+    mass in 0.1–0.9 desert: 17.9%
+  Classifier (n=542):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]     127    0.0000    0.0079    0.0079
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]     140    0.4115    0.0286    0.3829
+    [0.5–0.6]          (empty)
+    [0.6–0.7]      19    0.6897    0.2632    0.4266
+    [0.7–0.8]      12    0.7168    0.2500    0.4668
+    [0.8–0.9]       1    0.8423    1.0000    0.1577
+    [0.9–1.0]     243    0.9993    0.5103    0.4890
+    ECE=0.3456  MCE=0.4890  Brier=0.2883
+    histogram counts: [127, 0, 0, 0, 140, 0, 19, 12, 1, 243]
+    mass in 0.1–0.9 desert: 31.7%
+  Classifier (matched to LLM-valid) (n=442):
+    Range             n     Pred   Actual      Gap
+    ----------------------------------------------
+    [0.0–0.1]     110    0.0000    0.0091    0.0091
+    [0.1–0.2]          (empty)
+    [0.2–0.3]          (empty)
+    [0.3–0.4]          (empty)
+    [0.4–0.5]     105    0.4136    0.0381    0.3755
+    [0.5–0.6]          (empty)
+    [0.6–0.7]      16    0.6889    0.3125    0.3764
+    [0.7–0.8]      10    0.7183    0.3000    0.4183
+    [0.8–0.9]       1    0.8423    1.0000    0.1577
+    [0.9–1.0]     200    0.9992    0.5900    0.4092
+    ECE=0.3001  MCE=0.4183  Brier=0.2512
+    histogram counts: [110, 0, 0, 0, 105, 0, 16, 10, 1, 200]
+    mass in 0.1–0.9 desert: 29.9%
+
+Hard-benign FP rates (every malicious verdict is a false positive):
+  llm_judge p* >= 0.40:        FP  72/110 =   65.5%  (95% Wilson CI 56.2–73.7%)
+  llm_judge p* >= 0.50:        FP  72/110 =   65.5%  (95% Wilson CI 56.2–73.7%)
+  classifier p* >= 0.40:       FP 152/152 =  100.0%  (95% Wilson CI 97.5–100.0%)
+  classifier p* >= 0.50:       FP 142/152 =   93.4%  (95% Wilson CI 88.3–96.4%)
+
+Limitations:
+  - Single-pass: each event scored once by the LLM; no self-consistency averaging, so per-event scores carry sampling noise.
+  - Subset a labels come from auto_label_event, which shares its process/EID vocabulary with the classifier's features — CIRCULAR for the classifier (its calibration on subset a is flattered), independent evidence only for the LLM judge.
+  - Subset c labels come from label_by_technique (see run_large_independent_eval.py header for its rule-agreement caveats).
+  - Subset b is hand-authored, not captured telemetry — its FP rates are not deployment FP-rate estimates (see run_hard_benign_eval.py).
+  - Refusals / unparseable-after-retry are recorded as p=None, counted, and excluded from metric computation (never fabricated); when any occur, classifier_matched_to_llm_valid gives the strict head-to-head.
+  - Hard-benign is single-class (all benign), so its ECE reduces to mean predicted score; read it as FP-side miscalibration only.
+  - LLM scores are from one model snapshot on one date; the CLI/model version is recorded in metadata for reproducibility.
+
+Library versions: python=3.14.3, scikit-learn=1.9.0, numpy=2.5.1, pandas=3.0.3, joblib=1.5.3
