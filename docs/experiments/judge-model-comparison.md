@@ -3,8 +3,20 @@
 Same frozen 542-event plan (seed 42) for every row; sorted by ECE.
 `k` is the judge-prompt context window (classifier features always k=10).
 
+**Post-submission addendum (2026-08-14):** the shrink-the-context effect was
+originally measured only on the 4-bit 7B build (report §6.5 states it may not
+generalize). New run: Qwen2.5-7B-8bit at k=0 — the effect replicates across
+quantization (ECE 0.1253 at k=10 → 0.0288 at k=0, mirroring 4-bit's 0.1438 →
+0.0348) and posts the sweep's best open-model ECE, edging out 14B-4bit
+(0.0303) with a far better hard-benign FP profile than 4-bit-k0 (3.3% vs
+29.6%) and 1 null. Scope caveat: still one model size (7B); the 14B k-variant
+is untested (weights no longer on local disk). claude-opus-5 keeps the best
+Brier (0.1040). Artifacts: `runs/llm_judge_calibration_qwen25-7b-8bit-k0/`,
+responses in `runs/oss_judges/`.
+
 | Judge model | k | ECE | Brier | Hard-benign FP @0.40 | Nulls |
 |---|---|---|---|---|---|
+| mlx-community/Qwen2.5-7B-Instruct-8bit | 0 | 0.0288 | 0.1657 | 5/152 (3.3%) | 1 |
 | mlx-community/Qwen2.5-14B-Instruct-4bit | 10 | 0.0303 | 0.1384 | 1/146 (0.7%) | 10 |
 | mlx-community/Qwen2.5-7B-Instruct-4bit | 0 | 0.0348 | 0.1741 | 45/152 (29.6%) | 0 |
 | claude-opus-5 | 10 | 0.0541 | 0.1040 | 2/152 (1.3%) | 0 |
