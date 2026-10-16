@@ -3,7 +3,7 @@
 Citation: Tennenholtz, Guy, Nadav Merlis, Lior Shani, Shie Mannor, Uri Shalit, Gal Chechik, Assaf Hallak, and Gal Dalal. "Reinforcement Learning with a Terminator." NeurIPS 2022; arXiv:2205.15376v2.
 
 Raw source:
-- PDF: `docs/research/raw/papers/rl-with-terminator.pdf`
+- Source: see [`../raw/SOURCES.md`](../raw/SOURCES.md) for the citation and link
 - Text: `docs/research/raw/text/rl-with-terminator.txt`
 
 ## One-paragraph summary

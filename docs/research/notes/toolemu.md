@@ -3,7 +3,7 @@
 Citation: Ruan, Yangjun, Honghua Dong, Andrew Wang, Silviu Pitis, Yongchao Zhou, Jimmy Ba, Yann Dubois, Chris J. Maddison, and Tatsunori Hashimoto. "Identifying the Risks of LM Agents with an LM-Emulated Sandbox." ICLR 2024.
 
 Raw source:
-- PDF: `docs/research/raw/papers/toolemu.pdf`
+- Source: see [`../raw/SOURCES.md`](../raw/SOURCES.md) for the citation and link
 - Text: `docs/research/raw/text/toolemu.txt`
 
 ## One-paragraph summary

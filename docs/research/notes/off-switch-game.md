@@ -3,7 +3,7 @@
 Citation: Hadfield-Menell, Dylan, Anca Dragan, Pieter Abbeel, and Stuart Russell. "The Off-Switch Game." IJCAI 2017, pp. 220-227.
 
 Raw source:
-- PDF: `docs/research/raw/papers/off-switch-game.pdf`
+- Source: see [`../raw/SOURCES.md`](../raw/SOURCES.md) for the citation and link
 - Text: `docs/research/raw/text/off-switch-game.txt`
 
 ## One-paragraph summary

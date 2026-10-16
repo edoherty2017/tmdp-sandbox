@@ -3,7 +3,7 @@
 Citation: Bonagiri, Vamshi Krishna, Ponnurangam Kumaraguru, Khanh Nguyen, and Benjamin Plaut. "Check Yourself Before You Wreck Yourself: Selectively Quitting Improves LLM Agent Safety." arXiv:2510.16492v3, 2026.
 
 Raw source:
-- PDF: `docs/research/raw/papers/selective-quitting.pdf`
+- Source: see [`../raw/SOURCES.md`](../raw/SOURCES.md) for the citation and link
 - Text: `docs/research/raw/text/selective-quitting.txt`
 
 ## One-paragraph summary
